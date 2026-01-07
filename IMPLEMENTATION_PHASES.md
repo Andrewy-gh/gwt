@@ -1,0 +1,174 @@
+# GWT Implementation Phases
+
+A phased breakdown of the Git Worktree Manager implementation.
+
+---
+
+## Phase 1: Project Foundation
+
+- [ ] Initialize Go module and project structure
+- [ ] Set up Cobra CLI framework with root command
+- [ ] Implement `gwt doctor` command (prerequisite checks)
+- [ ] Add global flags (`--verbose`, `--quiet`, `--help`, `--version`)
+- [ ] Create basic error handling and output utilities
+
+---
+
+## Phase 2: Git Operations Core
+
+- [ ] Implement git command execution wrapper
+- [ ] Build worktree operations (list, add, remove via git CLI)
+- [ ] Build branch operations (create, delete, list local/remote)
+- [ ] Implement repository state validation (is git repo, is bare, etc.)
+- [ ] Add worktree status detection (clean/dirty, last commit, age)
+
+---
+
+## Phase 3: Configuration System
+
+- [ ] Define config struct for `.worktree.yaml`
+- [ ] Implement config loading with Viper
+- [ ] Add config inheritance (read from main worktree)
+- [ ] Implement `gwt config` and `gwt config init` commands
+- [ ] Set up default values for all config options
+
+---
+
+## Phase 4: Create Worktree (CLI)
+
+- [ ] Implement `gwt create` command structure
+- [ ] Add branch name validation and directory name conversion
+- [ ] Support new branch creation from HEAD or specific ref
+- [ ] Support existing local branch checkout
+- [ ] Support remote branch checkout with local tracking branch
+- [ ] Implement directory collision detection and handling
+- [ ] Add rollback on failure (cleanup partial worktree)
+- [ ] Implement concurrent operation locking
+
+---
+
+## Phase 5: List & Delete Worktrees (CLI)
+
+- [ ] Implement `gwt list` command with table output
+- [ ] Add `--json` and `--simple` output formats
+- [ ] Implement `gwt status` command
+- [ ] Implement `gwt delete` command
+- [ ] Add pre-deletion checks (uncommitted changes, merged status, remote existence)
+- [ ] Support batch deletion with confirmation
+- [ ] Implement `--force` and `--delete-branch` flags
+- [ ] Prevent main worktree deletion
+
+---
+
+## Phase 6: File Copying
+
+- [ ] Implement gitignored file discovery via `git status --ignored`
+- [ ] Build file/directory copy with progress tracking
+- [ ] Apply copy_defaults and copy_exclude patterns from config
+- [ ] Auto-exclude dependency directories by default
+- [ ] Show file sizes in selection
+
+---
+
+## Phase 7: Docker Compose Scaffolding
+
+- [ ] Implement compose file auto-detection
+- [ ] Parse compose files for services and volumes
+- [ ] Implement Shared mode (symlink data directories)
+- [ ] Implement New mode (copy data, rename volumes, generate override)
+- [ ] Add Windows symlink fallback (junction, then copy)
+- [ ] Generate `dc` helper script
+- [ ] Handle port conflict warnings
+
+---
+
+## Phase 8: Dependency Installation
+
+- [ ] Implement package manager detection (npm, yarn, pnpm, bun, go, cargo, pip, poetry)
+- [ ] Support monorepo detection via config paths
+- [ ] Run installations with output streaming
+- [ ] Add `--skip-install` flag
+
+---
+
+## Phase 9: Database Migrations
+
+- [ ] Implement migration tool detection (Makefile, Prisma, Drizzle, Alembic, raw SQL)
+- [ ] Check database container status before running
+- [ ] Execute migrations with output streaming
+- [ ] Add `--skip-migrations` flag
+
+---
+
+## Phase 10: Post-Setup Hooks
+
+- [ ] Implement hook execution from config
+- [ ] Set up GWT_* environment variables
+- [ ] Run hooks in new worktree directory
+- [ ] Support post_create and post_delete hooks
+
+---
+
+## Phase 11: TUI Framework
+
+- [ ] Set up Bubble Tea application structure
+- [ ] Create Lip Gloss styles and theme
+- [ ] Build reusable components (checkbox list, text input, table)
+- [ ] Implement main menu view
+- [ ] Add keyboard navigation and help footer
+
+---
+
+## Phase 12: TUI Views
+
+- [ ] Build create worktree flow (branch input, source selection)
+- [ ] Build remote branch selection with filter/refresh
+- [ ] Build file selection view with checkboxes
+- [ ] Build Docker mode selection view
+- [ ] Build worktree list view with batch selection
+- [ ] Implement delete confirmation with pre-flight checks display
+
+---
+
+## Phase 13: Integration & Polish
+
+- [ ] Wire TUI views to core operations
+- [ ] Add `--no-tui` flag for simple prompts fallback
+- [ ] Implement progress indicators for long operations
+- [ ] Add comprehensive error messages
+- [ ] Test Windows symlink/junction fallback
+- [ ] Write README with usage examples
+
+---
+
+## Dependency Order
+
+```
+Phase 1 (Foundation)
+    ↓
+Phase 2 (Git Core)
+    ↓
+Phase 3 (Config)
+    ↓
+┌───┴───┬───────┬───────┬───────┐
+↓       ↓       ↓       ↓       ↓
+Phase 4 Phase 5 Phase 6 Phase 7 Phase 8-10
+(Create) (List)  (Files) (Docker) (Deps/Migrations/Hooks)
+    ↓       ↓       ↓       ↓       ↓
+    └───────┴───────┴───────┴───────┘
+                    ↓
+            Phase 11 (TUI Framework)
+                    ↓
+            Phase 12 (TUI Views)
+                    ↓
+            Phase 13 (Integration)
+```
+
+---
+
+## Notes
+
+- Phases 4-10 can be developed in parallel after Phase 3
+- TUI development (11-12) can proceed alongside CLI features
+- Each phase should include unit tests for core logic
+- Windows compatibility should be verified throughout, not just at the end
