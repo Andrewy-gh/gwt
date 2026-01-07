@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go mod init:*)",
+      "Bash(go build:*)",
+      "Bash(go mod tidy:*)",
+      "Bash(go get:*)",
+      "Bash(./gwt.exe:*)",
+      "Bash(/c/E/2026/gwt/gwt.exe doctor:*)",
+      "Bash(go vet:*)",
+      "Bash(go test:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}
