@@ -1,0 +1,42 @@
+# Binaries
+gwt
+gwt.exe
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binaries
+*.test
+
+# Coverage files
+*.out
+coverage.txt
+coverage.html
+
+# Build artifacts
+dist/
+build/
+
+# IDE / Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Go workspace file
+go.work
+
+# Environment files
+.env
+.env.local
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Claude Code workspace
+.claude/
