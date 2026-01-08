@@ -6,11 +6,11 @@ A phased breakdown of the Git Worktree Manager implementation.
 
 ## Phase 1: Project Foundation
 
-- [ ] Initialize Go module and project structure
-- [ ] Set up Cobra CLI framework with root command
-- [ ] Implement `gwt doctor` command (prerequisite checks)
-- [ ] Add global flags (`--verbose`, `--quiet`, `--help`, `--version`)
-- [ ] Create basic error handling and output utilities
+- [X] Initialize Go module and project structure
+- [X] Set up Cobra CLI framework with root command
+- [X] Implement `gwt doctor` command (prerequisite checks)
+- [X] Add global flags (`--verbose`, `--quiet`, `--help`, `--version`)
+- [X] Create basic error handling and output utilities
 
 ---
 
