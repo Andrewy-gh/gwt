@@ -172,3 +172,34 @@ func ValidateNotBare(path string) error {
 	}
 	return nil
 }
+
+// ValidateRef checks if a ref (branch, tag, commit) exists
+func ValidateRef(repoPath, ref string) error {
+	result, err := RunWithOptions(RunOptions{
+		Dir:          repoPath,
+		Args:         []string{"rev-parse", "--verify", ref},
+		AllowFailure: true,
+	})
+
+	if err != nil || !result.Success() {
+		return fmt.Errorf("ref '%s' not found", ref)
+	}
+
+	return nil
+}
+
+// GetMainWorktree returns the main (non-linked) worktree
+func GetMainWorktree(repoPath string) (*Worktree, error) {
+	worktrees, err := ListWorktrees(repoPath)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, wt := range worktrees {
+		if wt.IsMain {
+			return &wt, nil
+		}
+	}
+
+	return nil, fmt.Errorf("main worktree not found")
+}

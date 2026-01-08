@@ -9,7 +9,9 @@
       "Bash(/c/E/2026/gwt/gwt.exe doctor:*)",
       "Bash(go vet:*)",
       "Bash(go test:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git worktree:*)",
+      "Bash(git branch:*)"
     ]
   }
 }
