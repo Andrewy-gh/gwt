@@ -16,11 +16,11 @@ A phased breakdown of the Git Worktree Manager implementation.
 
 ## Phase 2: Git Operations Core
 
-- [ ] Implement git command execution wrapper
-- [ ] Build worktree operations (list, add, remove via git CLI)
-- [ ] Build branch operations (create, delete, list local/remote)
-- [ ] Implement repository state validation (is git repo, is bare, etc.)
-- [ ] Add worktree status detection (clean/dirty, last commit, age)
+- [X] Implement git command execution wrapper
+- [X] Build worktree operations (list, add, remove via git CLI)
+- [X] Build branch operations (create, delete, list local/remote)
+- [X] Implement repository state validation (is git repo, is bare, etc.)
+- [X] Add worktree status detection (clean/dirty, last commit, age)
 
 ---
 

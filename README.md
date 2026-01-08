@@ -4,19 +4,29 @@ A powerful CLI tool for managing Git worktrees, making it easy to work with mult
 
 ## Features
 
-### Current (Phase 1)
+### Current
+
+**Phase 1: Foundation**
 - **System diagnostics** - `gwt doctor` validates prerequisites
 - **Cross-platform support** - Windows, macOS, and Linux
 - **Flexible output** - Verbose and quiet modes with color support
-- **Git integration** - Smart detection of repository state
+
+**Phase 2: Git Operations Core**
+- **Complete git abstraction layer** - Robust wrapper for all git operations
+- **Worktree management** - List, add, remove, prune, lock/unlock worktrees
+- **Branch operations** - Create, delete, rename, list local/remote branches
+- **Repository validation** - Detect repo state, worktrees, bare repos
+- **Status detection** - Clean/dirty state, staged/unstaged changes, ahead/behind tracking
+- **Remote operations** - Fetch, push, upstream tracking
+- **Comprehensive test coverage** - 34+ unit tests ensuring reliability
 
 ### Planned
+- Configuration management (Phase 3)
+- CLI commands for worktree creation (Phase 4)
 - Interactive TUI for worktree selection
-- Create and manage worktrees with ease
 - Docker database synchronization
 - Symlink support for shared databases
 - Branch cleanup utilities
-- Stash management across worktrees
 
 ## Installation
 
@@ -116,16 +126,32 @@ gwt/
 │   │   ├── root.go       # Root command
 │   │   ├── doctor.go     # Doctor command
 │   │   └── errors.go     # Error handling
-│   ├── config/           # Configuration management (future)
-│   ├── git/              # Git operations wrapper
-│   │   ├── git.go
-│   │   └── git_test.go
+│   ├── config/           # Configuration management (Phase 3)
+│   ├── git/              # Git operations core (Phase 2)
+│   │   ├── exec.go       # Command execution wrapper
+│   │   ├── errors.go     # Git-specific error types
+│   │   ├── repo.go       # Repository validation
+│   │   ├── worktree.go   # Worktree operations
+│   │   ├── branch.go     # Branch operations
+│   │   ├── status.go     # Status detection
+│   │   ├── remote.go     # Remote operations
+│   │   ├── git.go        # Git version & detection
+│   │   ├── *_test.go     # Comprehensive test coverage
 │   ├── output/           # Output utilities
 │   │   ├── output.go
 │   │   └── output_test.go
+│   ├── testutil/         # Test utilities
+│   │   └── git.go        # Git test helpers
 │   └── version/          # Version information
 │       ├── version.go
 │       └── version_test.go
+├── docs/                 # Documentation
+│   ├── GWT_SPEC.md
+│   ├── IMPLEMENTATION_PHASES.md
+│   ├── PHASE_1_PLAN.md
+│   ├── PHASE_2_PLAN.md
+│   ├── DEVELOPMENT.md
+│   └── CHANGELOG.md
 ├── go.mod
 ├── go.sum
 └── README.md
@@ -183,12 +209,13 @@ go mod tidy
 This project follows a phased implementation approach:
 
 - **Phase 1** (✓ Complete) - Foundation, CLI framework, `gwt doctor`
-- **Phase 2** (Planned) - Configuration management
-- **Phase 3** (Planned) - Core worktree operations
-- **Phase 4** (Planned) - TUI implementation
-- **Phase 5+** (Planned) - Advanced features
+- **Phase 2** (✓ Complete) - Git operations core (worktree, branch, status, remote)
+- **Phase 3** (Planned) - Configuration management
+- **Phase 4** (Planned) - Create worktree CLI command
+- **Phase 5** (Planned) - List & delete worktree CLI commands
+- **Phase 6+** (Planned) - File copying, Docker, dependencies, TUI
 
-See [IMPLEMENTATION_PHASES.md](IMPLEMENTATION_PHASES.md) for details.
+See [docs/IMPLEMENTATION_PHASES.md](docs/IMPLEMENTATION_PHASES.md) for details.
 
 ## Contributing
 
