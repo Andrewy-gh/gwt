@@ -1,0 +1,45 @@
+copy_defaults:
+  - ".env"
+  - "**/.env"
+  - "**/.env.local"
+  - ".claude/"
+  - "**/*.local.md"
+  - "**/setenv.sh"
+
+copy_exclude:
+  - "node_modules"
+  - "vendor"
+  - ".venv"
+  - "__pycache__"
+  - "target"
+  - "dist"
+  - "build"
+  - "*.log"
+
+docker:
+  compose_files:
+    - "docker-compose.yml"
+    - "docker-compose.dev.yml"
+  data_directories:
+    - "postgres-data"
+    - "redis-data"
+  default_mode: "new"
+  port_offset: 10
+
+dependencies:
+  auto_install: false
+  paths:
+    - "."
+    - "client"
+    - "server"
+
+migrations:
+  auto_detect: false
+  command: "make migrate-up"
+
+hooks:
+  post_create:
+    - "echo 'Worktree created!'"
+    - "npm install"
+  post_delete:
+    - "echo 'Worktree deleted!'"

@@ -1,0 +1,12 @@
+copy_defaults:
+  - ".env"
+
+docker:
+  default_mode: "shared"
+  port_offset: -1
+
+dependencies:
+  auto_install: true
+
+migrations:
+  auto_detect: true

@@ -1,0 +1,30 @@
+# Test config file with comments
+
+# Files to copy
+copy_defaults:
+  - ".env"
+  - "**/.env"
+
+# Files to exclude
+copy_exclude:
+  - "node_modules"
+
+# Docker settings
+docker:
+  default_mode: "shared"
+  port_offset: 1
+
+# Dependencies
+dependencies:
+  auto_install: true
+  paths:
+    - "."
+
+# Migrations
+migrations:
+  auto_detect: true
+
+# Hooks
+hooks:
+  post_create: []
+  post_delete: []

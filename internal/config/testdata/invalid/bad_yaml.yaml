@@ -1,0 +1,5 @@
+copy_defaults:
+  - ".env"
+docker:
+  default_mode: "shared"
+  port_offset: [invalid syntax here
