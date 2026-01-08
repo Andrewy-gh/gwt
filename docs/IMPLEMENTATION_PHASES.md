@@ -26,11 +26,11 @@ A phased breakdown of the Git Worktree Manager implementation.
 
 ## Phase 3: Configuration System
 
-- [ ] Define config struct for `.worktree.yaml`
-- [ ] Implement config loading with Viper
-- [ ] Add config inheritance (read from main worktree)
-- [ ] Implement `gwt config` and `gwt config init` commands
-- [ ] Set up default values for all config options
+- [X] Define config struct for `.worktree.yaml`
+- [X] Implement config loading with Viper
+- [X] Add config inheritance (read from main worktree)
+- [X] Implement `gwt config` and `gwt config init` commands
+- [X] Set up default values for all config options
 
 ---
 

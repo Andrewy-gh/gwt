@@ -20,8 +20,15 @@ A powerful CLI tool for managing Git worktrees, making it easy to work with mult
 - **Remote operations** - Fetch, push, upstream tracking
 - **Comprehensive test coverage** - 34+ unit tests ensuring reliability
 
+**Phase 3: Configuration System**
+- **Config file support** - `.worktree.yaml` with YAML format
+- **Config commands** - View, initialize, and manage configuration
+- **Config inheritance** - Linked worktrees inherit from main worktree
+- **Validation** - Comprehensive validation for all config fields
+- **Default values** - Sensible defaults for all settings
+- **Global --config flag** - Override config file path
+
 ### Planned
-- Configuration management (Phase 3)
 - CLI commands for worktree creation (Phase 4)
 - Interactive TUI for worktree selection
 - Docker database synchronization
@@ -113,6 +120,67 @@ gwt -q doctor
 - Docker availability (optional)
 - Docker Compose availability (optional)
 
+#### `gwt config`
+
+View and manage gwt configuration.
+
+```bash
+# View current configuration
+gwt config
+# or
+gwt config show
+
+# Show path to config file
+gwt config path
+
+# Create default config file
+gwt config init
+
+# Overwrite existing config file
+gwt config init --force
+
+# Create config in specific location
+gwt config init --output /path/to/.worktree.yaml
+
+# Use custom config file
+gwt --config /path/to/config.yaml config
+```
+
+**Configuration File (`.worktree.yaml`):**
+
+The config file controls gwt behavior with the following sections:
+
+- **copy_defaults**: Files/patterns to pre-select for copying (supports glob patterns)
+- **copy_exclude**: Patterns to never select by default
+- **docker**: Docker Compose settings (compose files, data directories, mode, port offset)
+- **dependencies**: Dependency installation settings (auto-install, paths)
+- **migrations**: Database migration settings (auto-detect, custom command)
+- **hooks**: Lifecycle hooks (post_create, post_delete)
+
+**Config File Search Order:**
+1. Explicit path via `--config` flag
+2. `.worktree.yaml` in current directory
+3. `.worktree.yaml` in repository root
+4. `.worktree.yaml` in main worktree (for linked worktrees)
+5. Default values if no config file exists
+
+**Example:**
+```yaml
+copy_defaults:
+  - ".env"
+  - "**/.env.local"
+
+docker:
+  default_mode: "shared"
+  port_offset: 1
+
+dependencies:
+  auto_install: true
+  paths:
+    - "."
+    - "client"
+```
+
 ## Development
 
 ### Project Structure
@@ -125,8 +193,17 @@ gwt/
 │   ├── cli/              # CLI commands and framework
 │   │   ├── root.go       # Root command
 │   │   ├── doctor.go     # Doctor command
+│   │   ├── config.go     # Config command
 │   │   └── errors.go     # Error handling
 │   ├── config/           # Configuration management (Phase 3)
+│   │   ├── config.go     # Config structs
+│   │   ├── defaults.go   # Default values
+│   │   ├── load.go       # Config loading with Viper
+│   │   ├── validate.go   # Config validation
+│   │   ├── errors.go     # Config error types
+│   │   ├── template.go   # Config file template
+│   │   ├── *_test.go     # Config tests
+│   │   └── testdata/     # Test fixtures
 │   ├── git/              # Git operations core (Phase 2)
 │   │   ├── exec.go       # Command execution wrapper
 │   │   ├── errors.go     # Git-specific error types
@@ -150,6 +227,7 @@ gwt/
 │   ├── IMPLEMENTATION_PHASES.md
 │   ├── PHASE_1_PLAN.md
 │   ├── PHASE_2_PLAN.md
+│   ├── PHASE_3_PLAN.md
 │   ├── DEVELOPMENT.md
 │   └── CHANGELOG.md
 ├── go.mod
@@ -210,7 +288,7 @@ This project follows a phased implementation approach:
 
 - **Phase 1** (✓ Complete) - Foundation, CLI framework, `gwt doctor`
 - **Phase 2** (✓ Complete) - Git operations core (worktree, branch, status, remote)
-- **Phase 3** (Planned) - Configuration management
+- **Phase 3** (✓ Complete) - Configuration management, `gwt config` commands
 - **Phase 4** (Planned) - Create worktree CLI command
 - **Phase 5** (Planned) - List & delete worktree CLI commands
 - **Phase 6+** (Planned) - File copying, Docker, dependencies, TUI
@@ -234,4 +312,4 @@ This project is open source. License TBD.
 
 Built with:
 - [Cobra](https://github.com/spf13/cobra) - CLI framework
-- [Viper](https://github.com/spf13/viper) - Configuration (coming in Phase 3)
+- [Viper](https://github.com/spf13/viper) - Configuration management

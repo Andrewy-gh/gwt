@@ -8,6 +8,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Phase 3: Configuration System**
+  - Configuration struct definitions with YAML and mapstructure tags
+  - Viper-based config loading from `.worktree.yaml`
+  - Config file search order: explicit path → current dir → repo root → main worktree
+  - Config inheritance: linked worktrees inherit config from main worktree
+  - Validation for all config fields (docker mode, port offset, glob patterns, paths)
+  - Default configuration values for all settings
+  - Config file template with helpful comments
+  - `gwt config` command to view current configuration
+  - `gwt config init` command to create default config file (with `--force` and `--output` flags)
+  - `gwt config path` command to show config file path
+  - Global `--config` flag to override config file path
+  - Comprehensive unit tests with test fixtures
+  - Support for the following config sections:
+    - `copy_defaults`: Files/patterns to pre-select for copying (glob support)
+    - `copy_exclude`: Patterns to never select by default
+    - `docker`: Docker Compose settings (compose files, data directories, mode, port offset)
+    - `dependencies`: Dependency installation settings (auto-install, paths)
+    - `migrations`: Database migration settings (auto-detect, custom command)
+    - `hooks`: Lifecycle hooks (post_create, post_delete)
 - **Phase 2: Git Operations Core**
   - Git command execution wrapper with timeout support and verbose logging
   - Comprehensive error types (GitError, NotARepoError, WorktreeError, BranchError, RemoteError)
