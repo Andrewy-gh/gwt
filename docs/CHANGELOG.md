@@ -8,6 +8,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Phase 4: Create Worktree (CLI)**
+  - `gwt create` command with comprehensive flag support
+  - Branch source detection: new branch from HEAD/ref, existing local, or remote branch
+  - Branch name validation according to git rules (no spaces, special chars, etc.)
+  - Directory name sanitization: converts branch names to valid directory names
+  - Sibling directory placement: worktrees created as `../project-branch-name`
+  - Directory collision detection with helpful error messages and suggestions
+  - Rollback functionality: automatic cleanup on failure (removes worktree, branch, directory)
+  - Operation locking: prevents concurrent `gwt create` operations with stale lock detection
+  - Command flags:
+    - `--branch` / `-b`: Create new branch from HEAD or specified ref
+    - `--from`: Starting point for new branch (commit, branch, tag)
+    - `--checkout`: Use existing local branch
+    - `--remote`: Checkout remote branch (creates local tracking branch)
+    - `--directory` / `-d`: Override target directory name
+    - `--force` / `-f`: Force creation even with warnings
+    - `--skip-install`, `--skip-migrations`, `--copy-config`: Future feature flags
+  - New package `internal/create/`:
+    - `validate.go`: Branch and directory name validation
+    - `branch.go`: Branch source parsing and validation
+    - `directory.go`: Directory collision detection
+    - `worktree.go`: Worktree creation orchestration
+    - `rollback.go`: Cleanup and rollback logic
+    - `lock.go`: Concurrent operation locking
+  - Comprehensive test coverage with unit tests
 - **Phase 3: Configuration System**
   - Configuration struct definitions with YAML and mapstructure tags
   - Viper-based config loading from `.worktree.yaml`

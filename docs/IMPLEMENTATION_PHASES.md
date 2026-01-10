@@ -36,14 +36,14 @@ A phased breakdown of the Git Worktree Manager implementation.
 
 ## Phase 4: Create Worktree (CLI)
 
-- [ ] Implement `gwt create` command structure
-- [ ] Add branch name validation and directory name conversion
-- [ ] Support new branch creation from HEAD or specific ref
-- [ ] Support existing local branch checkout
-- [ ] Support remote branch checkout with local tracking branch
-- [ ] Implement directory collision detection and handling
-- [ ] Add rollback on failure (cleanup partial worktree)
-- [ ] Implement concurrent operation locking
+- [X] Implement `gwt create` command structure
+- [X] Add branch name validation and directory name conversion
+- [X] Support new branch creation from HEAD or specific ref
+- [X] Support existing local branch checkout
+- [X] Support remote branch checkout with local tracking branch
+- [X] Implement directory collision detection and handling
+- [X] Add rollback on failure (cleanup partial worktree)
+- [X] Implement concurrent operation locking
 
 ---
 

@@ -28,8 +28,16 @@ A powerful CLI tool for managing Git worktrees, making it easy to work with mult
 - **Default values** - Sensible defaults for all settings
 - **Global --config flag** - Override config file path
 
+**Phase 4: Create Worktree (CLI)**
+- **Create command** - `gwt create` with comprehensive flag support
+- **Branch validation** - Git branch name validation and directory name conversion
+- **Multiple branch sources** - New branch from HEAD/ref, existing local, or remote branch
+- **Directory collision detection** - Smart handling of existing directories
+- **Rollback on failure** - Automatic cleanup of partial worktree creation
+- **Operation locking** - Prevent concurrent operations with stale lock detection
+- **Safe defaults** - Worktrees placed as siblings to main worktree
+
 ### Planned
-- CLI commands for worktree creation (Phase 4)
 - Interactive TUI for worktree selection
 - Docker database synchronization
 - Symlink support for shared databases
@@ -181,6 +189,69 @@ dependencies:
     - "client"
 ```
 
+#### `gwt create`
+
+Create a new worktree from a new or existing branch.
+
+```bash
+# Create worktree with new branch from HEAD
+gwt create -b feature-auth
+
+# Create from specific ref (branch, tag, or commit)
+gwt create -b feature-auth --from main
+gwt create -b hotfix --from v1.2.0
+
+# Use existing local branch
+gwt create --checkout existing-branch
+
+# Checkout remote branch (creates local tracking branch)
+gwt create --remote origin/feature-x
+
+# Override directory name
+gwt create -b feature-auth --directory custom-name
+
+# Force creation (skip some validations)
+gwt create -b feature-auth --force
+```
+
+**Flags:**
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--branch` | `-b` | New branch name |
+| `--from` | | Starting point for new branch (default: HEAD) |
+| `--checkout` | | Existing local branch to checkout |
+| `--remote` | | Remote branch to checkout (creates tracking branch) |
+| `--directory` | `-d` | Override target directory name |
+| `--force` | `-f` | Force creation even with warnings |
+| `--skip-install` | | Skip dependency installation |
+| `--skip-migrations` | | Skip running migrations |
+| `--copy-config` | | Copy `.worktree.yaml` to new worktree |
+
+**Branch Source Flags:**
+- `--branch`, `--checkout`, and `--remote` are mutually exclusive
+- `--from` only valid with `--branch`
+- At least one branch source must be specified
+
+**Behavior:**
+- Worktrees are created as siblings to the main worktree: `../project-branch-name`
+- Branch names with slashes are converted: `feature/auth/login` → `project-feature-auth-login`
+- Directory collision detection with helpful error messages
+- Automatic rollback on failure (cleans up partial worktree)
+- Operation locking prevents concurrent `gwt create` commands
+
+**Examples:**
+
+```bash
+# Main worktree at: /home/user/myapp
+# Creates worktree at: /home/user/myapp-feature-auth
+gwt create -b feature-auth
+
+# With custom directory
+# Creates worktree at: /home/user/my-custom-dir
+gwt create -b feature-auth --directory my-custom-dir
+```
+
 ## Development
 
 ### Project Structure
@@ -194,6 +265,7 @@ gwt/
 │   │   ├── root.go       # Root command
 │   │   ├── doctor.go     # Doctor command
 │   │   ├── config.go     # Config command
+│   │   ├── create.go     # Create command
 │   │   └── errors.go     # Error handling
 │   ├── config/           # Configuration management (Phase 3)
 │   │   ├── config.go     # Config structs
@@ -204,6 +276,14 @@ gwt/
 │   │   ├── template.go   # Config file template
 │   │   ├── *_test.go     # Config tests
 │   │   └── testdata/     # Test fixtures
+│   ├── create/           # Worktree creation (Phase 4)
+│   │   ├── validate.go   # Branch name validation
+│   │   ├── branch.go     # Branch source handling
+│   │   ├── directory.go  # Directory collision detection
+│   │   ├── worktree.go   # Worktree creation orchestration
+│   │   ├── rollback.go   # Rollback and cleanup
+│   │   ├── lock.go       # Operation locking
+│   │   └── *_test.go     # Create tests
 │   ├── git/              # Git operations core (Phase 2)
 │   │   ├── exec.go       # Command execution wrapper
 │   │   ├── errors.go     # Git-specific error types
@@ -227,7 +307,10 @@ gwt/
 │   ├── IMPLEMENTATION_PHASES.md
 │   ├── PHASE_1_PLAN.md
 │   ├── PHASE_2_PLAN.md
+│   ├── PHASE_2_SUMMARY.md
 │   ├── PHASE_3_PLAN.md
+│   ├── PHASE_4_PLAN.md
+│   ├── PHASE_4_SUMMARY.md
 │   ├── DEVELOPMENT.md
 │   └── CHANGELOG.md
 ├── go.mod
@@ -289,7 +372,7 @@ This project follows a phased implementation approach:
 - **Phase 1** (✓ Complete) - Foundation, CLI framework, `gwt doctor`
 - **Phase 2** (✓ Complete) - Git operations core (worktree, branch, status, remote)
 - **Phase 3** (✓ Complete) - Configuration management, `gwt config` commands
-- **Phase 4** (Planned) - Create worktree CLI command
+- **Phase 4** (✓ Complete) - Create worktree CLI command with validation and rollback
 - **Phase 5** (Planned) - List & delete worktree CLI commands
 - **Phase 6+** (Planned) - File copying, Docker, dependencies, TUI
 
