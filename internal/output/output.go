@@ -1,6 +1,7 @@
 package output
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -175,5 +176,19 @@ func Table(headers []string, rows [][]string) {
 			}
 		}
 		fmt.Fprintln(Out)
+	}
+}
+
+// JSON outputs data as formatted JSON (always outputs, ignores quiet mode for data output)
+func JSON(data interface{}) error {
+	encoder := json.NewEncoder(Out)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(data)
+}
+
+// SimpleList outputs items one per line (always outputs, ignores quiet mode for data output)
+func SimpleList(items []string) {
+	for _, item := range items {
+		fmt.Fprintln(Out, item)
 	}
 }

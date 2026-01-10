@@ -12,7 +12,8 @@
       "Bash(git add:*)",
       "Bash(git worktree:*)",
       "Bash(git branch:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(go run:*)"
     ]
   }
 }
