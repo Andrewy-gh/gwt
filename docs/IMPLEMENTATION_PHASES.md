@@ -49,14 +49,14 @@ A phased breakdown of the Git Worktree Manager implementation.
 
 ## Phase 5: List & Delete Worktrees (CLI)
 
-- [ ] Implement `gwt list` command with table output
-- [ ] Add `--json` and `--simple` output formats
-- [ ] Implement `gwt status` command
-- [ ] Implement `gwt delete` command
-- [ ] Add pre-deletion checks (uncommitted changes, merged status, remote existence)
-- [ ] Support batch deletion with confirmation
-- [ ] Implement `--force` and `--delete-branch` flags
-- [ ] Prevent main worktree deletion
+- [X] Implement `gwt list` command with table output
+- [X] Add `--json` and `--simple` output formats
+- [X] Implement `gwt status` command
+- [X] Implement `gwt delete` command
+- [X] Add pre-deletion checks (uncommitted changes, merged status, remote existence)
+- [X] Support batch deletion with confirmation
+- [X] Implement `--force` and `--delete-branch` flags
+- [X] Prevent main worktree deletion
 
 ---
 

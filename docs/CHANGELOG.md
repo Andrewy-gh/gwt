@@ -8,6 +8,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Phase 5: List & Delete Worktrees (CLI)**
+  - `gwt list` command with multiple output formats
+    - Table output with PATH, BRANCH, COMMIT, STATUS columns
+    - `--json` flag for JSON array output
+    - `--simple` flag for one path per line (scripting)
+    - `--all` / `-a` flag to include bare/prunable worktrees
+    - Alias: `ls`
+  - `gwt status` command for detailed worktree information
+    - Shows path, branch, commit, last modified time
+    - Working tree status (staged/unstaged/untracked counts)
+    - Upstream tracking info (ahead/behind counts)
+    - `--json` flag for JSON output
+  - `gwt delete` command with safety checks
+    - Delete by branch name or path
+    - Pre-deletion checks: main worktree, uncommitted changes, unmerged branch, locked status
+    - Batch deletion with confirmation prompt
+    - `--force` / `-f` flag to skip confirmation and force delete dirty worktrees
+    - `--delete-branch` / `-b` flag to also delete the branch
+    - `--dry-run` flag to preview what would be deleted
+    - Main worktree protection (cannot be overridden)
+    - Aliases: `rm`, `remove`
+  - New output utilities in `internal/output/`:
+    - `JSON()` function for formatted JSON output
+    - `SimpleList()` function for line-per-item output
+  - Comprehensive test coverage for all new commands
 - **Phase 4: Create Worktree (CLI)**
   - `gwt create` command with comprehensive flag support
   - Branch source detection: new branch from HEAD/ref, existing local, or remote branch
