@@ -72,13 +72,13 @@ A phased breakdown of the Git Worktree Manager implementation.
 
 ## Phase 7: Docker Compose Scaffolding
 
-- [ ] Implement compose file auto-detection
-- [ ] Parse compose files for services and volumes
-- [ ] Implement Shared mode (symlink data directories)
-- [ ] Implement New mode (copy data, rename volumes, generate override)
-- [ ] Add Windows symlink fallback (junction, then copy)
-- [ ] Generate `dc` helper script
-- [ ] Handle port conflict warnings
+- [X] Implement compose file auto-detection
+- [X] Parse compose files for services and volumes
+- [X] Implement Shared mode (symlink data directories)
+- [X] Implement New mode (copy data, rename volumes, generate override)
+- [X] Add Windows symlink fallback (junction, then copy)
+- [X] Generate `dc` helper script
+- [X] Handle port conflict warnings
 
 ---
 

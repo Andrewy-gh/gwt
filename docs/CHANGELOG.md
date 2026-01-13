@@ -8,6 +8,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Phase 7: Docker Compose Scaffolding**
+  - New `internal/docker/` package for Docker Compose automation
+  - Compose file auto-detection (docker-compose.yml, compose.yml, override files)
+  - Priority-based base file selection and multi-file merging
+  - **Shared mode**: Symlinks data directories to main worktree for shared containers
+  - **New mode**: Isolated containers with renamed volumes and remapped ports
+  - Cross-platform symlink support with Windows fallback chain (symlink → junction → copy)
+  - Override file generation (`docker-compose.worktree.yml`) with branch suffix
+  - Port offsetting with configurable offset (default: +1)
+  - Port conflict detection with warnings for common ports (80, 443, 5432, etc.)
+  - Helper script generation for bash (`dc`), PowerShell (`dc.ps1`), and CMD (`dc.cmd`)
+  - Volume and port string parsing (multiple formats)
+  - Data directory auto-detection via heuristics
+  - CLI integration with `gwt create`:
+    - `--docker-mode` flag to choose mode (shared, new, skip)
+    - `--skip-docker` flag to bypass Docker setup
+  - Configuration support via `.worktree.yaml`:
+    - `docker.compose_files`: Specific compose files (auto-detected if not set)
+    - `docker.data_directories`: Directories to symlink/copy (auto-detected if not set)
+    - `docker.default_mode`: Default mode (shared or new)
+    - `docker.port_offset`: Port offset for new mode
+  - Comprehensive test coverage (22 tests, 37 subtests)
+  - Non-fatal error handling (worktree succeeds even if Docker setup fails)
+  - Windows Developer Mode instructions for symlink permissions
+  - Files created:
+    - `internal/docker/detect.go` - Compose file auto-detection
+    - `internal/docker/parse.go` - Compose file parsing
+    - `internal/docker/symlink.go` - Cross-platform symlink utilities
+    - `internal/docker/symlink_windows.go` - Windows junction support
+    - `internal/docker/symlink_unix.go` - Unix stub for junctions
+    - `internal/docker/shared.go` - Shared mode implementation
+    - `internal/docker/new.go` - New mode implementation
+    - `internal/docker/override.go` - Override file generation
+    - `internal/docker/helper.go` - Helper script generation
+    - `internal/docker/ports.go` - Port conflict detection
+    - `internal/docker/errors.go` - Error types
+    - Complete test files for all modules
 - **Phase 6: File Copying**
   - New `internal/copy/` package for gitignored file management
   - Gitignored file discovery via `git status --ignored --porcelain`

@@ -52,10 +52,21 @@ A powerful CLI tool for managing Git worktrees, making it easy to work with mult
 - **Progress tracking** - Real-time progress during copy operations
 - **Error handling** - Collect and report errors without stopping entire operation
 
+**Phase 7: Docker Compose Scaffolding**
+- **Auto-detection** - Finds docker-compose.yml and override files automatically
+- **Shared mode** - Symlinks data directories to main worktree (default)
+- **New mode** - Isolated containers with renamed volumes and remapped ports
+- **Windows fallback** - Automatic fallback chain: symlink → junction → copy
+- **Helper scripts** - Generates `dc` wrapper script (bash/PowerShell/CMD)
+- **Port conflict detection** - Warns about common port conflicts with suggestions
+- **Override generation** - Creates `docker-compose.worktree.yml` with branch suffix
+- **Config integration** - Supports `docker` section in `.worktree.yaml`
+
 ### Planned
 - Interactive TUI for worktree selection
-- Docker database synchronization
-- Symlink support for shared databases
+- Dependency installation automation
+- Database migration running
+- Post-creation hooks
 - Branch cleanup utilities
 
 ## Installation
@@ -175,7 +186,11 @@ The config file controls gwt behavior with the following sections:
 
 - **copy_defaults**: Files/patterns to pre-select for copying (supports glob patterns)
 - **copy_exclude**: Patterns to never select by default
-- **docker**: Docker Compose settings (compose files, data directories, mode, port offset)
+- **docker**: Docker Compose settings
+  - `compose_files`: Specific compose files to use (auto-detected if not set)
+  - `data_directories`: Directories to symlink/copy (auto-detected if not set)
+  - `default_mode`: Default Docker mode (`shared` or `new`)
+  - `port_offset`: Port offset for new mode (default: 1)
 - **dependencies**: Dependency installation settings (auto-install, paths)
 - **migrations**: Database migration settings (auto-detect, custom command)
 - **hooks**: Lifecycle hooks (post_create, post_delete)
@@ -194,6 +209,12 @@ copy_defaults:
   - "**/.env.local"
 
 docker:
+  compose_files:
+    - "docker-compose.yml"
+    - "docker-compose.dev.yml"
+  data_directories:
+    - "server/db-data"
+    - "data/redis"
   default_mode: "shared"
   port_offset: 1
 
@@ -242,6 +263,9 @@ gwt create -b feature-auth --force
 | `--skip-install` | | Skip dependency installation |
 | `--skip-migrations` | | Skip running migrations |
 | `--copy-config` | | Copy `.worktree.yaml` to new worktree |
+| `--skip-copy` | | Skip copying gitignored files |
+| `--docker-mode` | | Docker setup mode: `shared`, `new`, or `skip` |
+| `--skip-docker` | | Skip Docker Compose setup |
 
 **Branch Source Flags:**
 - `--branch`, `--checkout`, and `--remote` are mutually exclusive
@@ -265,6 +289,19 @@ gwt create -b feature-auth
 # With custom directory
 # Creates worktree at: /home/user/my-custom-dir
 gwt create -b feature-auth --directory my-custom-dir
+
+# Docker: Shared mode (containers share data with main worktree)
+gwt create -b feature-auth --docker-mode shared
+# Run: docker compose up
+
+# Docker: New mode (isolated containers)
+gwt create -b feature-auth --docker-mode new
+# Creates docker-compose.worktree.yml with renamed volumes and remapped ports
+# Generates ./dc helper script
+# Run: ./dc up
+
+# Skip Docker setup entirely
+gwt create -b feature-auth --skip-docker
 ```
 
 ## Development
@@ -306,6 +343,17 @@ gwt/
 │   │   ├── rollback.go   # Rollback and cleanup
 │   │   ├── lock.go       # Operation locking
 │   │   └── *_test.go     # Create tests
+│   ├── docker/           # Docker Compose scaffolding (Phase 7)
+│   │   ├── detect.go     # Compose file auto-detection
+│   │   ├── parse.go      # Compose file parsing
+│   │   ├── symlink.go    # Cross-platform symlink utilities
+│   │   ├── shared.go     # Shared mode implementation
+│   │   ├── new.go        # New mode implementation
+│   │   ├── override.go   # Override file generation
+│   │   ├── helper.go     # Helper script generation
+│   │   ├── ports.go      # Port conflict detection
+│   │   ├── errors.go     # Custom error types
+│   │   └── *_test.go     # Docker tests
 │   ├── git/              # Git operations core (Phase 2)
 │   │   ├── exec.go       # Command execution wrapper
 │   │   ├── errors.go     # Git-specific error types
@@ -338,6 +386,8 @@ gwt/
 │   ├── PHASE_5_SUMMARY.md
 │   ├── PHASE_6_PLAN.md
 │   ├── PHASE_6_SUMMARY.md
+│   ├── PHASE_7_PLAN.md
+│   ├── PHASE_7_COMPLETE.md
 │   ├── DEVELOPMENT.md
 │   └── CHANGELOG.md
 ├── go.mod
@@ -402,7 +452,8 @@ This project follows a phased implementation approach:
 - **Phase 4** (✓ Complete) - Create worktree CLI command with validation and rollback
 - **Phase 5** (✓ Complete) - List & delete worktree CLI commands
 - **Phase 6** (✓ Complete) - File copying with pattern matching and progress tracking
-- **Phase 7+** (Planned) - Docker, dependencies, TUI
+- **Phase 7** (✓ Complete) - Docker Compose scaffolding with shared/new modes
+- **Phase 8+** (Planned) - Dependencies, migrations, hooks, TUI
 
 See [docs/IMPLEMENTATION_PHASES.md](docs/IMPLEMENTATION_PHASES.md) for details.
 
