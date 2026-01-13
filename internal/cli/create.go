@@ -12,6 +12,7 @@ import (
 	"github.com/Andrewy-gh/gwt/internal/docker"
 	"github.com/Andrewy-gh/gwt/internal/git"
 	"github.com/Andrewy-gh/gwt/internal/install"
+	"github.com/Andrewy-gh/gwt/internal/migrate"
 	"github.com/Andrewy-gh/gwt/internal/output"
 	"github.com/spf13/cobra"
 )
@@ -321,7 +322,20 @@ func createWorktreeWithRollback(repoPath string, spec *create.BranchSpec, target
 		}
 	}
 
-	// TODO: Run post-creation hooks (Phase 9+)
+	// Run migrations (Phase 9)
+	if !createOpts.SkipMigrations {
+		cfg, err := config.Load(repoPath)
+		if err != nil {
+			// If no config, use default config
+			cfg = config.DefaultConfig()
+		}
+		if err := runMigrations(result.Path, cfg); err != nil {
+			output.Warning(fmt.Sprintf("Migration had errors: %v", err))
+			// Non-fatal - worktree was created successfully
+		}
+	}
+
+	// TODO: Run post-creation hooks (Phase 10+)
 
 	// Success - prevent rollback
 	rollback.Clear()
@@ -626,5 +640,39 @@ func installDependencies(worktreePath string, cfg *config.Config) error {
 			result.ErrorCount(), len(result.Managers))
 	}
 
+	return nil
+}
+
+// runMigrations executes database migrations for the new worktree
+func runMigrations(worktreePath string, cfg *config.Config) error {
+	var migrateCfg *config.MigrationsConfig
+	if cfg != nil {
+		migrateCfg = &cfg.Migrations
+	}
+
+	opts := migrate.RunOptions{
+		WorktreePath: worktreePath,
+		Verbose:      GetVerbose(),
+	}
+
+	result, err := migrate.Run(opts, migrateCfg)
+	if err != nil {
+		return err
+	}
+
+	if result.Skipped {
+		output.Verbose(fmt.Sprintf("Migrations skipped: %s", result.Reason))
+		return nil
+	}
+
+	if !result.Success {
+		output.Warning(fmt.Sprintf("Migration failed: %v", result.Error))
+		if result.Output != "" {
+			output.Verbose("Migration output:\n" + result.Output)
+		}
+		return result.Error // Return error but caller treats as non-fatal
+	}
+
+	output.Success(fmt.Sprintf("Migrations completed (%s)", result.Tool.Name))
 	return nil
 }
