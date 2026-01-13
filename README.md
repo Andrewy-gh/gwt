@@ -62,9 +62,18 @@ A powerful CLI tool for managing Git worktrees, making it easy to work with mult
 - **Override generation** - Creates `docker-compose.worktree.yml` with branch suffix
 - **Config integration** - Supports `docker` section in `.worktree.yaml`
 
+**Phase 8: Dependency Installation**
+- **Package manager detection** - Supports npm, yarn, pnpm, bun, go, cargo, pip, poetry
+- **Monorepo support** - Configure multiple paths with glob patterns
+- **Lock file priority** - Prefers specific lock files (bun > pnpm > yarn > npm)
+- **Streaming output** - Real-time installation progress in verbose mode
+- **Timeout protection** - 5-minute default timeout prevents hanging
+- **Non-fatal errors** - Worktree creation succeeds even if install fails
+- **Skip flag** - `--skip-install` to bypass dependency installation
+- **Auto-install** - Runs automatically after worktree creation (configurable)
+
 ### Planned
 - Interactive TUI for worktree selection
-- Dependency installation automation
 - Database migration running
 - Post-creation hooks
 - Branch cleanup utilities
@@ -221,8 +230,9 @@ docker:
 dependencies:
   auto_install: true
   paths:
-    - "."
-    - "client"
+    - "."              # Root package
+    - "client"         # Frontend
+    - "packages/*"     # Monorepo packages (glob pattern)
 ```
 
 #### `gwt create`
@@ -302,6 +312,20 @@ gwt create -b feature-auth --docker-mode new
 
 # Skip Docker setup entirely
 gwt create -b feature-auth --skip-docker
+
+# Dependency Installation: Auto-detected and installed by default
+gwt create -b feature-auth
+# Detects: npm/yarn/pnpm/bun (JS), go (Go), cargo (Rust), pip/poetry (Python)
+
+# Skip dependency installation
+gwt create -b feature-auth --skip-install
+
+# Monorepo: Configure paths in .worktree.yaml
+# dependencies:
+#   paths:
+#     - "."
+#     - "apps/*"
+#     - "packages/*"
 ```
 
 ## Development
@@ -364,6 +388,12 @@ gwt/
 │   │   ├── remote.go     # Remote operations
 │   │   ├── git.go        # Git version & detection
 │   │   ├── *_test.go     # Comprehensive test coverage
+│   ├── install/          # Dependency installation (Phase 8)
+│   │   ├── detect.go     # Package manager detection
+│   │   ├── install.go    # Installation orchestrator
+│   │   ├── manager.go    # Package manager types
+│   │   ├── result.go     # Result types
+│   │   └── *_test.go     # Installation tests
 │   ├── output/           # Output utilities
 │   │   ├── output.go
 │   │   ├── progress.go   # Progress bar display
@@ -387,7 +417,9 @@ gwt/
 │   ├── PHASE_6_PLAN.md
 │   ├── PHASE_6_SUMMARY.md
 │   ├── PHASE_7_PLAN.md
-│   ├── PHASE_7_COMPLETE.md
+│   ├── PHASE_7_SUMMARY.md
+│   ├── PHASE_8_PLAN.md
+│   ├── PHASE_8_SUMMARY.md
 │   ├── DEVELOPMENT.md
 │   └── CHANGELOG.md
 ├── go.mod
@@ -453,7 +485,8 @@ This project follows a phased implementation approach:
 - **Phase 5** (✓ Complete) - List & delete worktree CLI commands
 - **Phase 6** (✓ Complete) - File copying with pattern matching and progress tracking
 - **Phase 7** (✓ Complete) - Docker Compose scaffolding with shared/new modes
-- **Phase 8+** (Planned) - Dependencies, migrations, hooks, TUI
+- **Phase 8** (✓ Complete) - Dependency installation with package manager detection
+- **Phase 9+** (Planned) - Migrations, hooks, TUI
 
 See [docs/IMPLEMENTATION_PHASES.md](docs/IMPLEMENTATION_PHASES.md) for details.
 

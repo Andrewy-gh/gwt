@@ -8,6 +8,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Phase 8: Dependency Installation**
+  - New `internal/install/` package for dependency management
+  - Package manager detection for 8 managers across 4 ecosystems:
+    - JavaScript/Node.js: npm, yarn, pnpm, bun
+    - Go: go mod download
+    - Rust: cargo fetch
+    - Python: pip, poetry
+  - Lock file priority detection (bun > pnpm > yarn > npm)
+  - Monorepo support with glob pattern expansion
+  - Installation orchestrator with streaming output
+  - 5-minute default timeout per installation
+  - Non-fatal error handling (worktree succeeds even if install fails)
+  - CLI integration with `gwt create`:
+    - `--skip-install` flag to bypass dependency installation (already existed, now functional)
+    - Verbose mode streams installation output
+  - Configuration support via `.worktree.yaml`:
+    - `dependencies.auto_install`: Enable/disable automatic installation (default: true)
+    - `dependencies.paths`: List of paths to check for package managers (supports glob patterns)
+  - Comprehensive test coverage (23 tests covering all package managers and scenarios)
+  - Files created:
+    - `internal/install/manager.go` - Package manager types and interfaces
+    - `internal/install/detect.go` - Package manager detection logic
+    - `internal/install/install.go` - Installation orchestrator
+    - `internal/install/result.go` - Result types and helpers
+    - Complete test files for detection and installation logic
 - **Phase 7: Docker Compose Scaffolding**
   - New `internal/docker/` package for Docker Compose automation
   - Compose file auto-detection (docker-compose.yml, compose.yml, override files)
