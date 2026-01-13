@@ -93,10 +93,10 @@ A phased breakdown of the Git Worktree Manager implementation.
 
 ## Phase 9: Database Migrations
 
-- [ ] Implement migration tool detection (Makefile, Prisma, Drizzle, Alembic, raw SQL)
-- [ ] Check database container status before running
-- [ ] Execute migrations with output streaming
-- [ ] Add `--skip-migrations` flag
+- [X] Implement migration tool detection (Makefile, Prisma, Drizzle, Alembic, raw SQL)
+- [X] Check database container status before running
+- [X] Execute migrations with output streaming
+- [X] Add `--skip-migrations` flag
 
 ---
 

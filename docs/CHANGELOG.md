@@ -8,6 +8,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Phase 9: Database Migrations**
+  - New `internal/migrate/` package for database migration automation
+  - Migration tool detection for 5 tools/patterns:
+    - Makefile targets: migrate, db-migrate, db:migrate
+    - Prisma: schema.prisma
+    - Drizzle: drizzle.config.ts/js
+    - Alembic: alembic.ini
+    - Raw SQL files (detected but requires manual execution)
+  - Docker container readiness checks before running migrations
+  - Container detection for common database services (db, database, postgres, mysql, mariadb, mongodb)
+  - Compose file detection (docker-compose.yml, compose.yml variants)
+  - Migration execution with streaming output
+  - 5-minute default timeout per migration
+  - Non-fatal error handling (worktree succeeds even if migration fails)
+  - CLI integration with `gwt create`:
+    - `--skip-migrations` flag to bypass migrations (already existed, now functional)
+    - Verbose mode streams migration output in real-time
+  - Configuration support via `.worktree.yaml`:
+    - `migrations.auto_detect`: Enable/disable auto-detection (default: true)
+    - `migrations.command`: Custom migration command override
+  - Dry-run mode for testing migration detection
+  - Comprehensive test coverage (12 tests covering all tools and scenarios)
+  - Files created:
+    - `internal/migrate/errors.go` - Error types for migrations
+    - `internal/migrate/result.go` - Result types and options
+    - `internal/migrate/detect.go` - Migration tool detection logic
+    - `internal/migrate/migrate.go` - Migration execution orchestrator
+    - `internal/migrate/container.go` - Docker container readiness checks
+    - Complete test files for detection, execution, and container checks
 - **Phase 8: Dependency Installation**
   - New `internal/install/` package for dependency management
   - Package manager detection for 8 managers across 4 ecosystems:

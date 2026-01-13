@@ -72,9 +72,19 @@ A powerful CLI tool for managing Git worktrees, making it easy to work with mult
 - **Skip flag** - `--skip-install` to bypass dependency installation
 - **Auto-install** - Runs automatically after worktree creation (configurable)
 
+**Phase 9: Database Migrations**
+- **Migration tool detection** - Supports Makefile, Prisma, Drizzle, Alembic, raw SQL
+- **Container readiness checks** - Verifies database container is running before migrations
+- **Docker Compose integration** - Detects compose files and database services
+- **Streaming output** - Real-time migration progress in verbose mode
+- **Timeout protection** - 5-minute default timeout prevents hanging
+- **Non-fatal errors** - Worktree creation succeeds even if migration fails
+- **Skip flag** - `--skip-migrations` to bypass database migrations
+- **Custom commands** - Override with custom migration command in config
+- **Auto-run** - Executes automatically after dependency installation (configurable)
+
 ### Planned
 - Interactive TUI for worktree selection
-- Database migration running
 - Post-creation hooks
 - Branch cleanup utilities
 
@@ -233,6 +243,10 @@ dependencies:
     - "."              # Root package
     - "client"         # Frontend
     - "packages/*"     # Monorepo packages (glob pattern)
+
+migrations:
+  auto_detect: true
+  command: ""          # Optional: override with custom command (e.g., "make db-migrate")
 ```
 
 #### `gwt create`
@@ -326,6 +340,19 @@ gwt create -b feature-auth --skip-install
 #     - "."
 #     - "apps/*"
 #     - "packages/*"
+
+# Database Migrations: Auto-detected and run by default
+gwt create -b feature-auth
+# Detects: Makefile targets, Prisma, Drizzle, Alembic, raw SQL
+# Checks database container readiness before running
+
+# Skip database migrations
+gwt create -b feature-auth --skip-migrations
+
+# Custom migration command in .worktree.yaml
+# migrations:
+#   auto_detect: true
+#   command: "make db-migrate"
 ```
 
 ## Development
