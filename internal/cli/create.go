@@ -4,12 +4,14 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/Andrewy-gh/gwt/internal/config"
 	"github.com/Andrewy-gh/gwt/internal/copy"
 	"github.com/Andrewy-gh/gwt/internal/create"
 	"github.com/Andrewy-gh/gwt/internal/docker"
 	"github.com/Andrewy-gh/gwt/internal/git"
+	"github.com/Andrewy-gh/gwt/internal/install"
 	"github.com/Andrewy-gh/gwt/internal/output"
 	"github.com/spf13/cobra"
 )
@@ -306,7 +308,20 @@ func createWorktreeWithRollback(repoPath string, spec *create.BranchSpec, target
 		}
 	}
 
-	// TODO: Run post-creation hooks (Phase 8+)
+	// Install dependencies (Phase 8)
+	if !createOpts.SkipInstall {
+		cfg, err := config.Load(repoPath)
+		if err != nil {
+			// If no config, use default config
+			cfg = config.DefaultConfig()
+		}
+		if err := installDependencies(result.Path, cfg); err != nil {
+			output.Warning(fmt.Sprintf("Dependency installation had errors: %v", err))
+			// Non-fatal - worktree was created successfully
+		}
+	}
+
+	// TODO: Run post-creation hooks (Phase 9+)
 
 	// Success - prevent rollback
 	rollback.Clear()
@@ -578,6 +593,37 @@ func setupNewMode(mainWorktree, newWorktree, branchName string, cfg *config.Conf
 		output.Println("")
 		output.Success("Created ./dc helper script for convenience.")
 		output.Info("Run './dc up' to start services.")
+	}
+
+	return nil
+}
+
+// installDependencies installs dependencies for the newly created worktree
+func installDependencies(worktreePath string, cfg *config.Config) error {
+	opts := install.InstallOptions{
+		Verbose: GetVerbose(),
+		Timeout: 5 * time.Minute,
+	}
+
+	if GetVerbose() {
+		opts.OnProgress = func(line string) {
+			output.Verbose(line)
+		}
+	}
+
+	result, err := install.Install(worktreePath, &cfg.Dependencies, opts)
+	if err != nil {
+		return err
+	}
+
+	if result.Skipped {
+		output.Verbose(fmt.Sprintf("Dependency installation skipped: %s", result.Reason))
+		return nil
+	}
+
+	if result.HasErrors() {
+		return fmt.Errorf("%d of %d installations failed",
+			result.ErrorCount(), len(result.Managers))
 	}
 
 	return nil

@@ -84,10 +84,10 @@ A phased breakdown of the Git Worktree Manager implementation.
 
 ## Phase 8: Dependency Installation
 
-- [ ] Implement package manager detection (npm, yarn, pnpm, bun, go, cargo, pip, poetry)
-- [ ] Support monorepo detection via config paths
-- [ ] Run installations with output streaming
-- [ ] Add `--skip-install` flag
+- [X] Implement package manager detection (npm, yarn, pnpm, bun, go, cargo, pip, poetry)
+- [X] Support monorepo detection via config paths
+- [X] Run installations with output streaming
+- [X] Add `--skip-install` flag
 
 ---
 
