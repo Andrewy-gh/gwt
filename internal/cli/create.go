@@ -3,6 +3,8 @@ package cli
 import (
 	"fmt"
 
+	"github.com/Andrewy-gh/gwt/internal/config"
+	"github.com/Andrewy-gh/gwt/internal/copy"
 	"github.com/Andrewy-gh/gwt/internal/create"
 	"github.com/Andrewy-gh/gwt/internal/git"
 	"github.com/Andrewy-gh/gwt/internal/output"
@@ -11,15 +13,17 @@ import (
 
 // CreateOptions holds all options for the create command
 type CreateOptions struct {
-	Branch         string // -b, --branch: New branch name
-	From           string // --from: Starting point for new branch (default: HEAD)
-	Checkout       string // --checkout: Existing local branch to checkout
-	Remote         string // --remote: Remote branch to checkout (creates tracking branch)
-	Directory      string // -d, --directory: Override target directory name
-	Force          bool   // -f, --force: Force creation even with warnings
-	SkipInstall    bool   // --skip-install: Skip dependency installation
-	SkipMigrations bool   // --skip-migrations: Skip running migrations
-	CopyConfig     bool   // --copy-config: Copy .worktree.yaml to new worktree
+	Branch         string   // -b, --branch: New branch name
+	From           string   // --from: Starting point for new branch (default: HEAD)
+	Checkout       string   // --checkout: Existing local branch to checkout
+	Remote         string   // --remote: Remote branch to checkout (creates tracking branch)
+	Directory      string   // -d, --directory: Override target directory name
+	Force          bool     // -f, --force: Force creation even with warnings
+	SkipInstall    bool     // --skip-install: Skip dependency installation
+	SkipMigrations bool     // --skip-migrations: Skip running migrations
+	CopyConfig     bool     // --copy-config: Copy .worktree.yaml to new worktree
+	SkipCopy       bool     // --skip-copy: Skip copying gitignored files
+	CopyFiles      []string // --copy: Additional files to copy (can be used multiple times)
 }
 
 var createOpts CreateOptions
@@ -52,6 +56,8 @@ func init() {
 	createCmd.Flags().BoolVar(&createOpts.SkipInstall, "skip-install", false, "skip dependency installation")
 	createCmd.Flags().BoolVar(&createOpts.SkipMigrations, "skip-migrations", false, "skip running migrations")
 	createCmd.Flags().BoolVar(&createOpts.CopyConfig, "copy-config", false, "copy .worktree.yaml to new worktree")
+	createCmd.Flags().BoolVar(&createOpts.SkipCopy, "skip-copy", false, "skip copying gitignored files")
+	createCmd.Flags().StringSliceVar(&createOpts.CopyFiles, "copy", nil, "additional files to copy (can be used multiple times)")
 
 	// Mark mutually exclusive flags
 	createCmd.MarkFlagsMutuallyExclusive("branch", "checkout", "remote")
@@ -263,13 +269,95 @@ func createWorktreeWithRollback(repoPath string, spec *create.BranchSpec, target
 		rollback.TrackBranch(result.Branch)
 	}
 
-	// TODO: Copy config if requested (Phase 6)
+	// Copy gitignored files (Phase 6)
+	if !createOpts.SkipCopy {
+		// Get main worktree path
+		mainWorktree, err := git.GetMainWorktreePath(repoPath)
+		if err != nil {
+			output.Warning(fmt.Sprintf("Failed to get main worktree path: %v", err))
+		} else {
+			if err := copyIgnoredFiles(mainWorktree, result.Path, repoPath); err != nil {
+				output.Warning(fmt.Sprintf("Failed to copy files: %v", err))
+				// Non-fatal - worktree was created successfully
+			}
+		}
+	}
+
 	// TODO: Run post-creation hooks (Phase 7+)
 
 	// Success - prevent rollback
 	rollback.Clear()
 
 	return result, nil
+}
+
+func copyIgnoredFiles(source, target string, repoPath string) error {
+	// 1. Load config
+	cfg, err := config.Load(repoPath)
+	if err != nil {
+		// If no config, use empty config (will still use default excludes)
+		cfg = &config.Config{}
+	}
+
+	// 2. Discover ignored files
+	ignored, err := copy.DiscoverIgnored(source)
+	if err != nil {
+		return err
+	}
+
+	if len(ignored) == 0 {
+		output.Info("No gitignored files to copy")
+		return nil
+	}
+
+	// 3. Create pattern matcher from config
+	matcher := copy.NewPatternMatcher(cfg.CopyDefaults, cfg.CopyExclude)
+
+	// 4. Create selection (pre-select defaults)
+	selection := copy.NewSelection(ignored, matcher)
+
+	// 5. Get selected files
+	selected := selection.GetSelected()
+
+	if len(selected) == 0 {
+		output.Info("No files selected for copying")
+		return nil
+	}
+
+	// 6. Show summary and copy
+	output.Info(fmt.Sprintf("Copying %d files (%s)...",
+		len(selected), copy.FormatSize(selection.SelectedSize)))
+
+	// Create progress bar
+	progressBar := output.NewProgressBar(len(selected), 20)
+
+	result, err := copy.Copy(copy.CopyOptions{
+		SourceDir:  source,
+		TargetDir:  target,
+		Files:      selected,
+		OnProgress: func(progress copy.CopyProgress) {
+			progressBar.Update(progress.FilesDone, progress.CurrentFile)
+		},
+		PreserveMode: true,
+	})
+
+	progressBar.Done()
+
+	if err != nil {
+		return err
+	}
+
+	// Report any non-fatal errors
+	if len(result.Errors) > 0 {
+		for _, copyErr := range result.Errors {
+			output.Warning(fmt.Sprintf("Failed to copy %s: %v", copyErr.Path, copyErr.Err))
+		}
+	}
+
+	output.Success(fmt.Sprintf("Copied %d files (%s)",
+		result.FilesCopied, copy.FormatSize(result.BytesCopied)))
+
+	return nil
 }
 
 func printSuccessMessage(result *create.CreateWorktreeResult) {
