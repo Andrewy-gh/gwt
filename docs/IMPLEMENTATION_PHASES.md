@@ -62,11 +62,11 @@ A phased breakdown of the Git Worktree Manager implementation.
 
 ## Phase 6: File Copying
 
-- [ ] Implement gitignored file discovery via `git status --ignored`
-- [ ] Build file/directory copy with progress tracking
-- [ ] Apply copy_defaults and copy_exclude patterns from config
-- [ ] Auto-exclude dependency directories by default
-- [ ] Show file sizes in selection
+- [X] Implement gitignored file discovery via `git status --ignored`
+- [X] Build file/directory copy with progress tracking
+- [X] Apply copy_defaults and copy_exclude patterns from config
+- [X] Auto-exclude dependency directories by default
+- [X] Show file sizes in selection
 
 ---
 

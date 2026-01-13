@@ -8,6 +8,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Phase 6: File Copying**
+  - New `internal/copy/` package for gitignored file management
+  - Gitignored file discovery via `git status --ignored --porcelain`
+  - Pattern matching with `doublestar` library for glob support
+    - Exact matches: `.env`
+    - Simple globs: `*.log`
+    - Double-star globs: `**/.env`
+    - Directory patterns: `node_modules`
+  - File selection with size calculation and formatting
+  - Default exclusions for common dependency directories
+  - File and directory copying with progress tracking
+  - Integration with `gwt create` command
+  - `--skip-copy` flag to bypass file copying
+  - Progress display in `internal/output/progress.go`
+  - Comprehensive test coverage (discover, match, copy, selection)
+  - Files created:
+    - `internal/copy/discover.go` - Git ignored file discovery
+    - `internal/copy/match.go` - Pattern matching logic
+    - `internal/copy/copy.go` - File/directory copying
+    - `internal/copy/selection.go` - File selection with sizes
+    - `internal/copy/errors.go` - Custom error types
+    - `internal/output/progress.go` - Progress bar display
+    - Complete test files for all modules
 - **Phase 5: List & Delete Worktrees (CLI)**
   - `gwt list` command with multiple output formats
     - Table output with PATH, BRANCH, COMMIT, STATUS columns

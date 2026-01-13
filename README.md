@@ -37,6 +37,21 @@ A powerful CLI tool for managing Git worktrees, making it easy to work with mult
 - **Operation locking** - Prevent concurrent operations with stale lock detection
 - **Safe defaults** - Worktrees placed as siblings to main worktree
 
+**Phase 5: List & Delete Worktrees (CLI)**
+- **List command** - `gwt list` with table, JSON, and simple output formats
+- **Status command** - `gwt status` for detailed worktree information
+- **Delete command** - `gwt delete` with comprehensive safety checks
+- **Batch operations** - Delete multiple worktrees with confirmation
+- **Main worktree protection** - Prevents accidental deletion of main worktree
+
+**Phase 6: File Copying**
+- **Gitignored file discovery** - Automatic detection via `git status --ignored`
+- **Pattern matching** - Apply `copy_defaults` and `copy_exclude` from config
+- **Smart exclusions** - Auto-exclude dependency directories (node_modules, vendor, etc.)
+- **File size display** - Show sizes for informed selection
+- **Progress tracking** - Real-time progress during copy operations
+- **Error handling** - Collect and report errors without stopping entire operation
+
 ### Planned
 - Interactive TUI for worktree selection
 - Docker database synchronization
@@ -276,6 +291,13 @@ gwt/
 │   │   ├── template.go   # Config file template
 │   │   ├── *_test.go     # Config tests
 │   │   └── testdata/     # Test fixtures
+│   ├── copy/             # File copying (Phase 6)
+│   │   ├── discover.go   # Git ignored file discovery
+│   │   ├── match.go      # Pattern matching logic
+│   │   ├── copy.go       # File/directory copying
+│   │   ├── selection.go  # File selection with sizes
+│   │   ├── errors.go     # Custom error types
+│   │   └── *_test.go     # Copy tests
 │   ├── create/           # Worktree creation (Phase 4)
 │   │   ├── validate.go   # Branch name validation
 │   │   ├── branch.go     # Branch source handling
@@ -296,6 +318,7 @@ gwt/
 │   │   ├── *_test.go     # Comprehensive test coverage
 │   ├── output/           # Output utilities
 │   │   ├── output.go
+│   │   ├── progress.go   # Progress bar display
 │   │   └── output_test.go
 │   ├── testutil/         # Test utilities
 │   │   └── git.go        # Git test helpers
@@ -311,6 +334,10 @@ gwt/
 │   ├── PHASE_3_PLAN.md
 │   ├── PHASE_4_PLAN.md
 │   ├── PHASE_4_SUMMARY.md
+│   ├── PHASE_5_PLAN.md
+│   ├── PHASE_5_SUMMARY.md
+│   ├── PHASE_6_PLAN.md
+│   ├── PHASE_6_SUMMARY.md
 │   ├── DEVELOPMENT.md
 │   └── CHANGELOG.md
 ├── go.mod
@@ -373,8 +400,9 @@ This project follows a phased implementation approach:
 - **Phase 2** (✓ Complete) - Git operations core (worktree, branch, status, remote)
 - **Phase 3** (✓ Complete) - Configuration management, `gwt config` commands
 - **Phase 4** (✓ Complete) - Create worktree CLI command with validation and rollback
-- **Phase 5** (Planned) - List & delete worktree CLI commands
-- **Phase 6+** (Planned) - File copying, Docker, dependencies, TUI
+- **Phase 5** (✓ Complete) - List & delete worktree CLI commands
+- **Phase 6** (✓ Complete) - File copying with pattern matching and progress tracking
+- **Phase 7+** (Planned) - Docker, dependencies, TUI
 
 See [docs/IMPLEMENTATION_PHASES.md](docs/IMPLEMENTATION_PHASES.md) for details.
 
