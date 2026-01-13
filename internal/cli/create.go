@@ -1,11 +1,14 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/Andrewy-gh/gwt/internal/config"
 	"github.com/Andrewy-gh/gwt/internal/copy"
 	"github.com/Andrewy-gh/gwt/internal/create"
+	"github.com/Andrewy-gh/gwt/internal/docker"
 	"github.com/Andrewy-gh/gwt/internal/git"
 	"github.com/Andrewy-gh/gwt/internal/output"
 	"github.com/spf13/cobra"
@@ -24,6 +27,8 @@ type CreateOptions struct {
 	CopyConfig     bool     // --copy-config: Copy .worktree.yaml to new worktree
 	SkipCopy       bool     // --skip-copy: Skip copying gitignored files
 	CopyFiles      []string // --copy: Additional files to copy (can be used multiple times)
+	DockerMode     string   // --docker-mode: Docker setup mode: shared, new, or skip
+	SkipDocker     bool     // --skip-docker: Skip Docker Compose setup
 }
 
 var createOpts CreateOptions
@@ -58,6 +63,10 @@ func init() {
 	createCmd.Flags().BoolVar(&createOpts.CopyConfig, "copy-config", false, "copy .worktree.yaml to new worktree")
 	createCmd.Flags().BoolVar(&createOpts.SkipCopy, "skip-copy", false, "skip copying gitignored files")
 	createCmd.Flags().StringSliceVar(&createOpts.CopyFiles, "copy", nil, "additional files to copy (can be used multiple times)")
+
+	// Docker setup flags (Phase 7)
+	createCmd.Flags().StringVar(&createOpts.DockerMode, "docker-mode", "", "Docker setup mode: shared, new, or skip")
+	createCmd.Flags().BoolVar(&createOpts.SkipDocker, "skip-docker", false, "skip Docker Compose setup")
 
 	// Mark mutually exclusive flags
 	createCmd.MarkFlagsMutuallyExclusive("branch", "checkout", "remote")
@@ -283,7 +292,21 @@ func createWorktreeWithRollback(repoPath string, spec *create.BranchSpec, target
 		}
 	}
 
-	// TODO: Run post-creation hooks (Phase 7+)
+	// Docker setup (Phase 7)
+	if !createOpts.SkipDocker {
+		// Get main worktree path
+		mainWorktree, err := git.GetMainWorktreePath(repoPath)
+		if err != nil {
+			output.Warning(fmt.Sprintf("Failed to get main worktree path: %v", err))
+		} else {
+			if err := setupDocker(mainWorktree, result.Path, repoPath, result.Branch); err != nil {
+				output.Warning(fmt.Sprintf("Docker setup failed: %v", err))
+				// Non-fatal - worktree was created successfully
+			}
+		}
+	}
+
+	// TODO: Run post-creation hooks (Phase 8+)
 
 	// Success - prevent rollback
 	rollback.Clear()
@@ -374,4 +397,188 @@ func printSuccessMessage(result *create.CreateWorktreeResult) {
 	output.Println("")
 	output.Info("To start working:")
 	output.Info(fmt.Sprintf("  cd %s", result.Path))
+}
+
+// setupDocker sets up Docker Compose for the new worktree
+func setupDocker(mainWorktree, newWorktree, repoPath, branchName string) error {
+	// 1. Load config
+	cfg, err := config.Load(repoPath)
+	if err != nil {
+		// If no config, use empty config
+		cfg = &config.Config{}
+	}
+
+	// 2. Detect compose files
+	composeFiles, err := docker.DetectOrLoad(mainWorktree, cfg.Docker.ComposeFiles)
+	if err != nil {
+		if errors.Is(err, docker.ErrNoComposeFile) {
+			output.Verbose("No Docker Compose files found")
+			return nil
+		}
+		return err
+	}
+
+	// 3. Parse compose files
+	composePaths := docker.GetComposePaths(composeFiles)
+	composeConfig, err := docker.ParseComposeFiles(composePaths)
+	if err != nil {
+		return err
+	}
+
+	// Show detected services
+	services := make([]string, 0, len(composeConfig.Services))
+	for name := range composeConfig.Services {
+		services = append(services, name)
+	}
+	output.Info(fmt.Sprintf("Found Docker services: %s", strings.Join(services, ", ")))
+
+	// 4. Determine mode
+	mode := createOpts.DockerMode
+	if mode == "" {
+		mode = cfg.Docker.DefaultMode
+	}
+	if mode == "" {
+		mode = "shared" // Default
+	}
+
+	// 5. Execute mode
+	switch mode {
+	case "shared":
+		return setupSharedMode(mainWorktree, newWorktree, cfg, composeConfig)
+
+	case "new":
+		return setupNewMode(mainWorktree, newWorktree, branchName, cfg, composeConfig, composePaths)
+
+	case "skip":
+		output.Info("Skipping Docker setup")
+		return nil
+
+	default:
+		return fmt.Errorf("invalid docker mode: %s (must be 'shared', 'new', or 'skip')", mode)
+	}
+}
+
+// setupSharedMode sets up Docker in shared mode (symlink data directories)
+func setupSharedMode(mainWorktree, newWorktree string, cfg *config.Config, composeConfig *docker.ComposeConfig) error {
+	result, err := docker.SetupSharedMode(docker.SharedModeOptions{
+		MainWorktree:    mainWorktree,
+		NewWorktree:     newWorktree,
+		DataDirectories: cfg.Docker.DataDirectories,
+		ComposeConfig:   composeConfig,
+	})
+	if err != nil {
+		return err
+	}
+
+	// Display results
+	output.Println("")
+	output.Info("Docker Compose Setup (Shared Mode)")
+	output.Info("──────────────────────────────────")
+
+	for _, linkedDir := range result.LinkedDirs {
+		relPath := strings.TrimPrefix(linkedDir.Target, newWorktree)
+		relPath = strings.TrimPrefix(relPath, "/")
+		relPath = strings.TrimPrefix(relPath, "\\")
+
+		methodStr := ""
+		switch linkedDir.Method {
+		case docker.LinkSymlink:
+			methodStr = "symlink"
+		case docker.LinkJunction:
+			methodStr = "junction"
+		case docker.LinkCopy:
+			methodStr = "copied"
+		}
+
+		output.Success(fmt.Sprintf("Linked %s (%s)", relPath, methodStr))
+	}
+
+	// Display warnings
+	for _, warning := range result.Warnings {
+		output.Warning(warning)
+	}
+
+	if len(result.LinkedDirs) > 0 {
+		output.Println("")
+		output.Info("Containers will share data with the main worktree.")
+	}
+	output.Info("Run 'docker compose up' to start services.")
+
+	return nil
+}
+
+// setupNewMode sets up Docker in new mode (isolated containers)
+func setupNewMode(mainWorktree, newWorktree, branchName string, cfg *config.Config, composeConfig *docker.ComposeConfig, composePaths []string) error {
+	// Default port offset if not configured
+	portOffset := cfg.Docker.PortOffset
+	if portOffset == 0 {
+		portOffset = 1
+	}
+
+	result, err := docker.SetupNewMode(docker.NewModeOptions{
+		MainWorktree:    mainWorktree,
+		NewWorktree:     newWorktree,
+		BranchName:      branchName,
+		DataDirectories: cfg.Docker.DataDirectories,
+		ComposeConfig:   composeConfig,
+		PortOffset:      portOffset,
+	})
+	if err != nil {
+		return err
+	}
+
+	// Display results
+	output.Println("")
+	output.Info("Docker Compose Setup (New Mode)")
+	output.Info("───────────────────────────────")
+
+	// Show copied directories
+	for _, dir := range result.CopiedDirs {
+		output.Success(fmt.Sprintf("Copied %s", dir))
+	}
+
+	if result.OverrideFile != "" {
+		output.Success("Created docker-compose.worktree.yml")
+	}
+
+	// Show renamed volumes
+	if len(result.RenamedVolumes) > 0 {
+		output.Println("")
+		output.Info("Volumes renamed:")
+		for oldName, newName := range result.RenamedVolumes {
+			output.Info(fmt.Sprintf("  %s → %s", oldName, newName))
+		}
+	}
+
+	// Show remapped ports
+	if len(result.RemappedPorts) > 0 {
+		output.Println("")
+		output.Info("Ports remapped:")
+		for oldPort, newPort := range result.RemappedPorts {
+			output.Info(fmt.Sprintf("  %s → %d", oldPort, newPort))
+		}
+	}
+
+	// Show warnings
+	for _, warning := range result.Warnings {
+		output.Warning(warning)
+	}
+	for _, warning := range result.PortWarnings {
+		output.Warning(warning)
+	}
+
+	// Generate helper script
+	if err := docker.GenerateHelperScript(docker.HelperScriptOptions{
+		WorktreePath: newWorktree,
+		ComposeFiles: composePaths,
+		OverrideFile: "docker-compose.worktree.yml",
+	}); err != nil {
+		output.Warning(fmt.Sprintf("Failed to generate helper script: %v", err))
+	} else {
+		output.Println("")
+		output.Success("Created ./dc helper script for convenience.")
+		output.Info("Run './dc up' to start services.")
+	}
+
+	return nil
 }
