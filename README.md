@@ -83,9 +83,18 @@ A powerful CLI tool for managing Git worktrees, making it easy to work with mult
 - **Custom commands** - Override with custom migration command in config
 - **Auto-run** - Executes automatically after dependency installation (configurable)
 
+**Phase 10: Post-Setup Hooks**
+- **Lifecycle hooks** - Run custom commands after worktree creation/deletion
+- **Environment variables** - Access GWT_WORKTREE_PATH, GWT_BRANCH, GWT_MAIN_WORKTREE, GWT_REPO_PATH, GWT_HOOK_TYPE
+- **Sequential execution** - Hooks run in order with predictable behavior
+- **Timeout protection** - 5-minute default timeout per hook
+- **Non-fatal errors** - Hook failures don't prevent worktree operations
+- **Skip flags** - `--skip-hooks` to bypass hook execution
+- **Cross-platform** - Works on Windows (cmd.exe) and Unix (/bin/sh)
+- **Config integration** - Define hooks in `.worktree.yaml` (post_create, post_delete)
+
 ### Planned
 - Interactive TUI for worktree selection
-- Post-creation hooks
 - Branch cleanup utilities
 
 ## Installation
@@ -247,6 +256,13 @@ dependencies:
 migrations:
   auto_detect: true
   command: ""          # Optional: override with custom command (e.g., "make db-migrate")
+
+hooks:
+  post_create:
+    - "echo 'Setting up worktree...'"
+    - "npm run setup"
+  post_delete:
+    - "echo 'Cleaning up resources...'"
 ```
 
 #### `gwt create`
@@ -290,6 +306,7 @@ gwt create -b feature-auth --force
 | `--skip-copy` | | Skip copying gitignored files |
 | `--docker-mode` | | Docker setup mode: `shared`, `new`, or `skip` |
 | `--skip-docker` | | Skip Docker Compose setup |
+| `--skip-hooks` | | Skip post-creation hooks |
 
 **Branch Source Flags:**
 - `--branch`, `--checkout`, and `--remote` are mutually exclusive
@@ -353,6 +370,22 @@ gwt create -b feature-auth --skip-migrations
 # migrations:
 #   auto_detect: true
 #   command: "make db-migrate"
+
+# Post-Creation Hooks: Run custom commands after worktree creation
+gwt create -b feature-auth
+# Configured hooks run automatically with GWT_* environment variables
+
+# Skip hooks
+gwt create -b feature-auth --skip-hooks
+
+# Example hooks in .worktree.yaml
+# hooks:
+#   post_create:
+#     - "echo 'Setting up in $GWT_WORKTREE_PATH'"
+#     - "cp .env.example .env"
+#     - "make setup"
+#   post_delete:
+#     - "docker compose -p gwt-$GWT_BRANCH down -v"
 ```
 
 ## Development
@@ -415,12 +448,24 @@ gwt/
 │   │   ├── remote.go     # Remote operations
 │   │   ├── git.go        # Git version & detection
 │   │   ├── *_test.go     # Comprehensive test coverage
+│   ├── hooks/            # Post-setup hooks (Phase 10)
+│   │   ├── errors.go     # Hook error types
+│   │   ├── env.go        # Environment variable setup
+│   │   ├── exec.go       # Command execution utilities
+│   │   ├── hooks.go      # Hook executor
+│   │   ├── *_test.go     # Hook tests
+│   │   └── testdata/     # Test fixtures
 │   ├── install/          # Dependency installation (Phase 8)
 │   │   ├── detect.go     # Package manager detection
 │   │   ├── install.go    # Installation orchestrator
 │   │   ├── manager.go    # Package manager types
 │   │   ├── result.go     # Result types
 │   │   └── *_test.go     # Installation tests
+│   ├── migrate/          # Database migrations (Phase 9)
+│   │   ├── detect.go     # Migration tool detection
+│   │   ├── run.go        # Migration executor
+│   │   ├── result.go     # Result types
+│   │   └── *_test.go     # Migration tests
 │   ├── output/           # Output utilities
 │   │   ├── output.go
 │   │   ├── progress.go   # Progress bar display
@@ -447,6 +492,10 @@ gwt/
 │   ├── PHASE_7_SUMMARY.md
 │   ├── PHASE_8_PLAN.md
 │   ├── PHASE_8_SUMMARY.md
+│   ├── PHASE_9_PLAN.md
+│   ├── PHASE_9_SUMMARY.md
+│   ├── PHASE_10_PLAN.md
+│   ├── PHASE_10_SUMMARY.md
 │   ├── DEVELOPMENT.md
 │   └── CHANGELOG.md
 ├── go.mod
@@ -513,7 +562,9 @@ This project follows a phased implementation approach:
 - **Phase 6** (✓ Complete) - File copying with pattern matching and progress tracking
 - **Phase 7** (✓ Complete) - Docker Compose scaffolding with shared/new modes
 - **Phase 8** (✓ Complete) - Dependency installation with package manager detection
-- **Phase 9+** (Planned) - Migrations, hooks, TUI
+- **Phase 9** (✓ Complete) - Database migrations with auto-detection
+- **Phase 10** (✓ Complete) - Post-setup hooks with environment variables
+- **Phase 11+** (Planned) - TUI, interactive selection
 
 See [docs/IMPLEMENTATION_PHASES.md](docs/IMPLEMENTATION_PHASES.md) for details.
 

@@ -102,10 +102,10 @@ A phased breakdown of the Git Worktree Manager implementation.
 
 ## Phase 10: Post-Setup Hooks
 
-- [ ] Implement hook execution from config
-- [ ] Set up GWT_* environment variables
-- [ ] Run hooks in new worktree directory
-- [ ] Support post_create and post_delete hooks
+- [X] Implement hook execution from config
+- [X] Set up GWT_* environment variables
+- [X] Run hooks in new worktree directory
+- [X] Support post_create and post_delete hooks
 
 ---
 
