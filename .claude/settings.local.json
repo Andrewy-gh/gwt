@@ -14,7 +14,8 @@
       "Bash(git branch:*)",
       "Bash(find:*)",
       "Bash(go run:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(done)"
     ]
   }
 }

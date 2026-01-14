@@ -15,6 +15,7 @@ import (
 	"github.com/Andrewy-gh/gwt/internal/install"
 	"github.com/Andrewy-gh/gwt/internal/migrate"
 	"github.com/Andrewy-gh/gwt/internal/output"
+	"github.com/Andrewy-gh/gwt/internal/tui"
 	"github.com/spf13/cobra"
 )
 
@@ -86,8 +87,12 @@ func init() {
 func runCreate(cmd *cobra.Command, args []string) error {
 	// 1. Validate that at least one branch source is specified
 	if !hasAnyBranchFlag(createOpts) {
-		// No flags provided - would launch TUI (Phase 12)
-		return fmt.Errorf("interactive mode not yet implemented; use --branch, --checkout, or --remote")
+		// No flags provided - launch TUI if enabled
+		if GetNoTUI() {
+			return fmt.Errorf("no branch specified; use --branch, --checkout, or --remote")
+		}
+		// Launch TUI (Phase 12 will implement the full flow)
+		return tui.Run()
 	}
 
 	// 2. Validate flag combinations
