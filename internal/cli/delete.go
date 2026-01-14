@@ -7,8 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/Andrewy-gh/gwt/internal/config"
 	"github.com/Andrewy-gh/gwt/internal/create"
 	"github.com/Andrewy-gh/gwt/internal/git"
+	"github.com/Andrewy-gh/gwt/internal/hooks"
 	"github.com/Andrewy-gh/gwt/internal/output"
 	"github.com/spf13/cobra"
 )
@@ -18,6 +20,7 @@ type DeleteOptions struct {
 	Force        bool // -f, --force: Skip confirmation and force delete dirty worktrees
 	DeleteBranch bool // -b, --delete-branch: Also delete the branch
 	DryRun       bool // --dry-run: Show what would be deleted without doing it
+	SkipHooks    bool // --skip-hooks: Skip post-delete hooks
 }
 
 var deleteOpts DeleteOptions
@@ -47,6 +50,7 @@ func init() {
 	deleteCmd.Flags().BoolVarP(&deleteOpts.Force, "force", "f", false, "skip confirmation, force delete dirty worktrees")
 	deleteCmd.Flags().BoolVarP(&deleteOpts.DeleteBranch, "delete-branch", "b", false, "also delete the branch")
 	deleteCmd.Flags().BoolVar(&deleteOpts.DryRun, "dry-run", false, "show what would be deleted")
+	deleteCmd.Flags().BoolVar(&deleteOpts.SkipHooks, "skip-hooks", false, "skip post-delete hooks")
 
 	rootCmd.AddCommand(deleteCmd)
 }
@@ -178,6 +182,23 @@ func runDelete(cmd *cobra.Command, args []string) error {
 				output.Warning(fmt.Sprintf("Could not delete branch %s: %v", target.Worktree.Branch, err))
 			} else {
 				output.Success(fmt.Sprintf("Deleted branch: %s", target.Worktree.Branch))
+			}
+		}
+
+		// Execute post-delete hooks (Phase 10)
+		if !deleteOpts.SkipHooks {
+			cfg, err := config.Load(repoPath)
+			if err != nil {
+				cfg = config.DefaultConfig()
+			}
+			mainWorktree, err := git.GetMainWorktreePath(repoPath)
+			if err != nil {
+				output.Warning(fmt.Sprintf("Failed to get main worktree path: %v", err))
+			} else {
+				if err := runPostDeleteHooks(repoPath, cfg, target.Worktree, mainWorktree); err != nil {
+					output.Warning(fmt.Sprintf("Post-delete hooks had errors: %v", err))
+					// Non-fatal - worktree was deleted successfully
+				}
 			}
 		}
 	}
@@ -457,4 +478,39 @@ func deleteWorktree(repoPath string, target *DeleteTarget) error {
 	}
 
 	return git.RemoveWorktree(repoPath, opts)
+}
+
+// runPostDeleteHooks executes post-delete hooks after worktree deletion
+func runPostDeleteHooks(repoPath string, cfg *config.Config, worktree *git.Worktree, mainWorktree string) error {
+	if cfg == nil || len(cfg.Hooks.PostDelete) == 0 {
+		output.Verbose("No post-delete hooks configured")
+		return nil
+	}
+
+	output.Verbose(fmt.Sprintf("Running %d post-delete hooks...", len(cfg.Hooks.PostDelete)))
+
+	executor := hooks.NewExecutor(repoPath, cfg)
+	hookResult, err := executor.Execute(hooks.ExecuteOptions{
+		HookType:         hooks.HookTypePostDelete,
+		WorktreeBranch:   worktree.Branch,
+		MainWorktreePath: mainWorktree,
+		// Note: WorktreePath is omitted since worktree is deleted
+	})
+
+	if err != nil {
+		return err
+	}
+
+	if hookResult.Failed > 0 {
+		for _, hookErr := range hookResult.Errors {
+			output.Warning(fmt.Sprintf("Post-delete hook failed: %s", hookErr.Error()))
+		}
+		return fmt.Errorf("%d hooks failed", hookResult.Failed)
+	}
+
+	if hookResult.Successful > 0 {
+		output.Verbose(fmt.Sprintf("Executed %d post-delete hooks", hookResult.Successful))
+	}
+
+	return nil
 }

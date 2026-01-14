@@ -56,5 +56,8 @@ migrations:
 # Post-setup hooks (run after everything else)
 # Hooks run in the new worktree directory with GWT_* environment variables
 hooks:
-  post_create: []
-  post_delete: []
+  post_create:
+    - "echo Running post-create hook in %GWT_WORKTREE_PATH%"
+    - "echo Branch: %GWT_BRANCH%"
+  post_delete:
+    - "echo Running post-delete hook for branch %GWT_BRANCH%"

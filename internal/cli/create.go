@@ -11,6 +11,7 @@ import (
 	"github.com/Andrewy-gh/gwt/internal/create"
 	"github.com/Andrewy-gh/gwt/internal/docker"
 	"github.com/Andrewy-gh/gwt/internal/git"
+	"github.com/Andrewy-gh/gwt/internal/hooks"
 	"github.com/Andrewy-gh/gwt/internal/install"
 	"github.com/Andrewy-gh/gwt/internal/migrate"
 	"github.com/Andrewy-gh/gwt/internal/output"
@@ -32,6 +33,7 @@ type CreateOptions struct {
 	CopyFiles      []string // --copy: Additional files to copy (can be used multiple times)
 	DockerMode     string   // --docker-mode: Docker setup mode: shared, new, or skip
 	SkipDocker     bool     // --skip-docker: Skip Docker Compose setup
+	SkipHooks      bool     // --skip-hooks: Skip post-creation hooks
 }
 
 var createOpts CreateOptions
@@ -70,6 +72,9 @@ func init() {
 	// Docker setup flags (Phase 7)
 	createCmd.Flags().StringVar(&createOpts.DockerMode, "docker-mode", "", "Docker setup mode: shared, new, or skip")
 	createCmd.Flags().BoolVar(&createOpts.SkipDocker, "skip-docker", false, "skip Docker Compose setup")
+
+	// Hook execution flags (Phase 10)
+	createCmd.Flags().BoolVar(&createOpts.SkipHooks, "skip-hooks", false, "skip post-creation hooks")
 
 	// Mark mutually exclusive flags
 	createCmd.MarkFlagsMutuallyExclusive("branch", "checkout", "remote")
@@ -335,7 +340,23 @@ func createWorktreeWithRollback(repoPath string, spec *create.BranchSpec, target
 		}
 	}
 
-	// TODO: Run post-creation hooks (Phase 10+)
+	// Execute post-creation hooks (Phase 10)
+	if !createOpts.SkipHooks {
+		cfg, err := config.Load(repoPath)
+		if err != nil {
+			// If no config, use default config
+			cfg = config.DefaultConfig()
+		}
+		mainWorktree, err := git.GetMainWorktreePath(repoPath)
+		if err != nil {
+			output.Warning(fmt.Sprintf("Failed to get main worktree path: %v", err))
+		} else {
+			if err := runPostCreateHooks(repoPath, cfg, result, mainWorktree); err != nil {
+				output.Warning(fmt.Sprintf("Post-create hooks had errors: %v", err))
+				// Non-fatal - worktree was created successfully
+			}
+		}
+	}
 
 	// Success - prevent rollback
 	rollback.Clear()
@@ -674,5 +695,42 @@ func runMigrations(worktreePath string, cfg *config.Config) error {
 	}
 
 	output.Success(fmt.Sprintf("Migrations completed (%s)", result.Tool.Name))
+	return nil
+}
+
+// runPostCreateHooks executes post-creation hooks for the new worktree
+func runPostCreateHooks(repoPath string, cfg *config.Config, result *create.CreateWorktreeResult, mainWorktree string) error {
+	if cfg == nil || len(cfg.Hooks.PostCreate) == 0 {
+		output.Verbose("No post-create hooks configured")
+		return nil
+	}
+
+	output.Info(fmt.Sprintf("Running %d post-create hooks...", len(cfg.Hooks.PostCreate)))
+
+	executor := hooks.NewExecutor(repoPath, cfg)
+	hookResult, err := executor.Execute(hooks.ExecuteOptions{
+		HookType:         hooks.HookTypePostCreate,
+		WorktreePath:     result.Path,
+		WorktreeBranch:   result.Branch,
+		MainWorktreePath: mainWorktree,
+	})
+
+	if err != nil {
+		output.Warning(fmt.Sprintf("Hook execution error: %v", err))
+		return err
+	}
+
+	if hookResult.Failed > 0 {
+		output.Warning(fmt.Sprintf("Hooks: %d succeeded, %d failed", hookResult.Successful, hookResult.Failed))
+		for _, hookErr := range hookResult.Errors {
+			output.Warning(fmt.Sprintf("  - %s", hookErr.Error()))
+		}
+		return fmt.Errorf("%d hooks failed", hookResult.Failed)
+	}
+
+	if hookResult.Successful > 0 {
+		output.Success(fmt.Sprintf("Executed %d post-create hooks", hookResult.Successful))
+	}
+
 	return nil
 }
