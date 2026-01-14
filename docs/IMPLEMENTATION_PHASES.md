@@ -111,11 +111,11 @@ A phased breakdown of the Git Worktree Manager implementation.
 
 ## Phase 11: TUI Framework
 
-- [ ] Set up Bubble Tea application structure
-- [ ] Create Lip Gloss styles and theme
-- [ ] Build reusable components (checkbox list, text input, table)
-- [ ] Implement main menu view
-- [ ] Add keyboard navigation and help footer
+- [X] Set up Bubble Tea application structure
+- [X] Create Lip Gloss styles and theme
+- [X] Build reusable components (checkbox list, text input, table)
+- [X] Implement main menu view
+- [X] Add keyboard navigation and help footer
 
 ---
 

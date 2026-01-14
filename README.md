@@ -93,8 +93,20 @@ A powerful CLI tool for managing Git worktrees, making it easy to work with mult
 - **Cross-platform** - Works on Windows (cmd.exe) and Unix (/bin/sh)
 - **Config integration** - Define hooks in `.worktree.yaml` (post_create, post_delete)
 
+**Phase 11: TUI Framework**
+- **Bubble Tea application** - Modern terminal UI built on Charm libraries
+- **Lip Gloss theming** - Purple (#7C3AED) and Cyan (#06B6D4) color scheme
+- **Reusable components** - Checkbox list, text input, table, help footer
+- **Vim-style navigation** - Support for j/k keys alongside arrow keys
+- **Main menu** - Interactive menu with Create, List, Delete, Configuration options
+- **Keyboard shortcuts** - Enter to select, q to quit, customizable bindings
+- **CLI integration** - TUI launches automatically with `gwt create` (no flags)
+- **Fallback mode** - Use `--no-tui` for non-interactive operation
+
 ### Planned
-- Interactive TUI for worktree selection
+- TUI views for create/delete flows (Phase 12)
+- Branch selection with filtering
+- File selection interface
 - Branch cleanup utilities
 
 ## Installation
@@ -472,6 +484,19 @@ gwt/
 │   │   └── output_test.go
 │   ├── testutil/         # Test utilities
 │   │   └── git.go        # Git test helpers
+│   ├── tui/              # TUI framework (Phase 11)
+│   │   ├── tui.go        # TUI entry point and runner
+│   │   ├── model.go      # Root model with view switching
+│   │   ├── keys.go       # Key bindings definitions
+│   │   ├── styles/
+│   │   │   └── styles.go # Lip Gloss theme and styles
+│   │   ├── components/
+│   │   │   ├── list.go   # Checkbox list component
+│   │   │   ├── input.go  # Text input component
+│   │   │   ├── table.go  # Table display component
+│   │   │   └── help.go   # Help footer component
+│   │   └── views/
+│   │       └── menu.go   # Main menu view
 │   └── version/          # Version information
 │       ├── version.go
 │       └── version_test.go
@@ -496,6 +521,7 @@ gwt/
 │   ├── PHASE_9_SUMMARY.md
 │   ├── PHASE_10_PLAN.md
 │   ├── PHASE_10_SUMMARY.md
+│   ├── PHASE_11_PLAN.md
 │   ├── DEVELOPMENT.md
 │   └── CHANGELOG.md
 ├── go.mod
@@ -564,7 +590,8 @@ This project follows a phased implementation approach:
 - **Phase 8** (✓ Complete) - Dependency installation with package manager detection
 - **Phase 9** (✓ Complete) - Database migrations with auto-detection
 - **Phase 10** (✓ Complete) - Post-setup hooks with environment variables
-- **Phase 11+** (Planned) - TUI, interactive selection
+- **Phase 11** (✓ Complete) - TUI framework with Bubble Tea and reusable components
+- **Phase 12+** (Planned) - TUI views for create/delete flows, interactive selection
 
 See [docs/IMPLEMENTATION_PHASES.md](docs/IMPLEMENTATION_PHASES.md) for details.
 
@@ -586,3 +613,6 @@ This project is open source. License TBD.
 Built with:
 - [Cobra](https://github.com/spf13/cobra) - CLI framework
 - [Viper](https://github.com/spf13/viper) - Configuration management
+- [Bubble Tea](https://github.com/charmbracelet/bubbletea) - TUI framework
+- [Lip Gloss](https://github.com/charmbracelet/lipgloss) - Style definitions for terminal UIs
+- [Bubbles](https://github.com/charmbracelet/bubbles) - TUI components

@@ -8,6 +8,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Phase 11: TUI Framework**
+  - New `internal/tui/` package for interactive terminal user interface
+  - Bubble Tea application structure with view switching architecture
+  - Lip Gloss theme with purple (#7C3AED) and cyan (#06B6D4) color scheme
+  - Reusable components:
+    - `components/list.go` - Checkbox list with vim-style navigation (j/k, arrows)
+    - `components/input.go` - Text input with validation and error display
+    - `components/table.go` - Styled table with optional row selection
+    - `components/help.go` - Contextual help footer display
+  - Main menu view with 4 options: Create Worktree, List Worktrees, Delete Worktree, Configuration
+  - Keyboard navigation: vim keys (j/k), arrows, enter to select, q to quit
+  - Key bindings system with customizable shortcuts
+  - CLI integration with `gwt create` - TUI launches when no flags provided
+  - Respects `--no-tui` flag for non-interactive mode
+  - Files created:
+    - `internal/tui/tui.go` - TUI entry point and runner
+    - `internal/tui/model.go` - Root model with view state management
+    - `internal/tui/keys.go` - Key bindings definitions
+    - `internal/tui/styles/styles.go` - Lip Gloss theme and styles
+    - `internal/tui/components/list.go` - Checkbox list component
+    - `internal/tui/components/input.go` - Text input component
+    - `internal/tui/components/table.go` - Table display component
+    - `internal/tui/components/help.go` - Help footer component
+    - `internal/tui/views/menu.go` - Main menu implementation
+  - Dependencies added:
+    - `github.com/charmbracelet/bubbletea` v1.3.10
+    - `github.com/charmbracelet/lipgloss` v1.1.0
+    - `github.com/charmbracelet/bubbles` v0.21.0
+- **Phase 10: Post-Setup Hooks**
+  - New `internal/hooks/` package for lifecycle hook execution
+  - Hook execution from `.worktree.yaml` configuration
+  - Support for `post_create` and `post_delete` hooks
+  - Environment variables for hooks:
+    - `GWT_WORKTREE_PATH` - Path to the new/deleted worktree
+    - `GWT_BRANCH` - Branch name of the worktree
+    - `GWT_MAIN_WORKTREE` - Path to the main worktree
+    - `GWT_REPO_PATH` - Path to the git repository
+    - `GWT_HOOK_TYPE` - Type of hook being executed (post_create, post_delete)
+  - Sequential hook execution with predictable ordering
+  - Hooks run in the new worktree directory context
+  - 5-minute default timeout per hook
+  - Non-fatal error handling (worktree operation succeeds even if hook fails)
+  - Cross-platform support (cmd.exe on Windows, /bin/sh on Unix)
+  - CLI integration with `gwt create` and `gwt delete`:
+    - `--skip-hooks` flag to bypass hook execution
+  - Files created:
+    - `internal/hooks/errors.go` - Hook error types
+    - `internal/hooks/env.go` - Environment variable setup
+    - `internal/hooks/exec.go` - Command execution utilities
+    - `internal/hooks/hooks.go` - Hook executor
+    - Complete test files for hook execution
 - **Phase 9: Database Migrations**
   - New `internal/migrate/` package for database migration automation
   - Migration tool detection for 5 tools/patterns:

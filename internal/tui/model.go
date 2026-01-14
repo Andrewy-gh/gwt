@@ -13,10 +13,12 @@ const (
 	ViewMenu View = iota
 	ViewCreateBranch
 	ViewCreateSource
+	ViewRemoteBranch
 	ViewFileSelect
 	ViewDockerMode
 	ViewWorktreeList
 	ViewDeleteConfirm
+	ViewProgress
 )
 
 // Model is the root model that manages view switching
