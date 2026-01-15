@@ -6,9 +6,9 @@ Implement all interactive TUI views for the GWT application, building on the Pha
 
 ## Implementation Progress
 
-**Status**: 7/13 steps completed (54%)
+**Status**: 11/13 steps completed (85%)
 
-### ✅ Completed (Steps 1-7)
+### ✅ Completed (Steps 1-10, 13)
 
 1. **Foundation Files** - `internal/tui/messages.go`, `internal/tui/flow.go`
    - Custom Bubble Tea messages for view transitions, operations, and async events
@@ -50,38 +50,48 @@ Implement all interactive TUI views for the GWT application, building on the Pha
    - Info box explaining each mode with warnings
    - Integration with docker.DetectComposeFiles() and docker.ParseComposeFiles()
 
-### 🚧 Remaining (Steps 8-13)
-
 8. **Worktree List View** - `internal/tui/views/worktree_list.go`
    - Table with checkbox column for batch selection
-   - Status indicators (clean/dirty/warnings)
+   - Status indicators (clean/dirty/warnings with color coding)
    - D key to delete selected, R key to refresh
+   - Real-time status loading for all worktrees
+   - Scroll support for large lists
+   - Integration with git.ListWorktrees() and git.GetWorktreeStatus()
 
 9. **Delete Confirmation View** - `internal/tui/views/delete_confirm.go`
    - Pre-flight checks table (BLOCK/WARN/OK)
-   - Y/N confirmation with summary
-   - Integration with internal/cli/delete.go logic
+   - Y/N confirmation with summary counts
+   - Check types: main worktree (BLOCK), current directory (BLOCK), uncommitted changes (WARN), unpushed commits (WARN), unmerged branch (WARN), locked (WARN)
+   - Integration with delete check logic from internal/cli/delete.go
 
 10. **Progress Views** - `internal/tui/views/progress.go`
     - FetchingView for remote operations
-    - CopyingView for file operations
-    - CreatingView for multi-stage worktree creation
-
-11. **Root Model Integration** - `internal/tui/model.go`
-    - Extend Update() with all view cases
-    - Extend View() with all view renderers
-    - Add view initialization methods
-    - Implement operation execution methods
-
-12. **Menu Integration** - `internal/tui/views/menu.go`
-    - Update menu actions to return SwitchViewMsg
-    - Pass repository path to views
+    - CopyingView for file operations with byte/file counts
+    - CreatingView for multi-stage worktree creation with status icons
+    - DeletingView for batch worktree deletion
 
 13. **Async Operations** - `internal/tui/operations.go`
-    - createWorktreeCmd() with progress reporting
+    - createWorktreeCmd() with all stages (create, copy, docker, hooks)
     - fetchRemotesCmd() with error handling
-    - deleteWorktreesCmd() with batch processing
+    - deleteWorktreesCmd() with batch processing and hook execution
+    - validateBranchCmd() for branch validation
+    - detectDockerCmd() for compose file detection
     - discoverFilesCmd() for background file scanning
+
+### 🚧 Remaining (Steps 11-12)
+
+11. **Root Model Integration** - `internal/tui/model.go` (PARTIAL)
+    - ✅ Extended Model struct with all view sub-models
+    - ✅ Added repoPath and createFlowState fields
+    - ✅ Extended View() with all view renderers
+    - ✅ Extended Update() switch to delegate to all views
+    - ⏳ Need to implement individual update handler methods (updateCreateBranch, updateCreateSource, etc.)
+    - ⏳ Need to implement view initialization methods
+    - ⏳ Need to handle view transitions and state management
+
+12. **Menu Integration** - `internal/tui/views/menu.go`
+    - Update menu actions to trigger view transitions
+    - Pass repository path to views
 
 ### Files Created
 
@@ -96,26 +106,95 @@ Implement all interactive TUI views for the GWT application, building on the Pha
 - ✅ `internal/tui/views/remote_branch.go` (329 lines)
 - ✅ `internal/tui/views/file_select.go` (283 lines)
 - ✅ `internal/tui/views/docker_mode.go` (269 lines)
-
-**Pending**:
-- ⏳ `internal/tui/views/worktree_list.go`
-- ⏳ `internal/tui/views/delete_confirm.go`
-- ⏳ `internal/tui/views/progress.go`
-- ⏳ `internal/tui/operations.go`
+- ✅ `internal/tui/views/worktree_list.go` (571 lines)
+- ✅ `internal/tui/views/delete_confirm.go` (551 lines)
+- ✅ `internal/tui/views/progress.go` (386 lines)
+- ✅ `internal/tui/operations.go` (323 lines)
 
 **To Modify**:
-- ⏳ `internal/tui/model.go` (extend for all views)
+- 🚧 `internal/tui/model.go` (partially extended, needs update handlers)
 - ⏳ `internal/tui/views/menu.go` (integrate actions)
 
 ### Notes for Next Agent
 
-- All create flow views (steps 3-7) are complete and compile successfully
+**Completed Work:**
+- All view files (steps 1-10, 13) are complete and implemented
 - Views follow consistent patterns: Init/Update/View methods, error handling, async operations
 - Components use Bubble Tea's Elm architecture with message passing
 - File discovery and Docker detection run asynchronously with spinners
-- Tab navigation implemented for multi-component views
-- All views integrate with existing core packages (git, create, copy, docker, config)
-- go mod tidy needed to ensure github.com/charmbracelet/harmonica is in go.mod
+- Worktree list view uses local message types to avoid import cycles
+- Delete confirmation view duplicates CheckStatus/DeleteTarget types to avoid import cycles
+- Progress views include FetchingModel, CopyingModel, CreatingModel, DeletingModel
+- Operations file provides all async commands for worktree creation, deletion, and data loading
+- All views integrate with existing core packages (git, create, copy, docker, config, hooks)
+
+**Remaining Work:**
+1. **Complete `internal/tui/model.go`** - Need to add ~8 update handler methods:
+   - `updateCreateBranch()` - handle branch input completion, transition to next step
+   - `updateCreateSource()` - handle source selection, transition to file select
+   - `updateRemoteBranch()` - handle remote branch selection, transition to file select
+   - `updateFileSelect()` - handle file selection, transition to docker mode
+   - `updateDockerMode()` - handle docker mode selection, initiate worktree creation
+   - `updateWorktreeList()` - handle selection and delete request, transition to confirm
+   - `updateDeleteConfirm()` - handle confirmation, initiate deletion
+   - `updateProgress()` - handle progress view updates and completion messages
+
+2. **Update `internal/tui/views/menu.go`**:
+   - Modify menu selection handler to transition to appropriate views
+   - "Create Worktree" → initialize createBranch view and switch
+   - "List Worktrees" → initialize worktreeList view and switch
+   - Ensure menu passes repoPath to root model
+
+3. **Build and Test**:
+   - Run `go mod tidy` to ensure all dependencies
+   - Fix any compilation errors
+   - Test view navigation flow
+   - Ensure New() function signature change is handled in main.go or tui command
+
+**Critical Implementation Pattern:**
+Each update handler should:
+1. Update the view sub-model
+2. Check for completion/cancellation flags (view.ShouldCancel(), view.IsComplete(), etc.)
+3. Handle state updates (update createFlowState for create flow)
+4. Transition to next view or return to menu
+5. Return commands for async operations when needed
+
+**Example Pattern:**
+```go
+func (m Model) updateCreateBranch(msg tea.Msg) (tea.Model, tea.Cmd) {
+    var cmd tea.Cmd
+    m.createBranch, cmd = m.createBranch.Update(msg)
+
+    if m.createBranch.IsCancelled() {
+        m.view = ViewMenu
+        return m, nil
+    }
+
+    if m.createBranch.IsComplete() {
+        // Save to flow state
+        m.createFlowState.BranchSpec = m.createBranch.GetBranchSpec()
+        m.createFlowState.SourceType = m.createBranch.GetSourceType()
+
+        // Determine next view based on source type
+        switch m.createFlowState.SourceType {
+        case create.BranchSourceNewFromRef:
+            m.view = ViewCreateSource
+            m.createSource = views.NewCreateSourceModel(m.repoPath)
+            return m, m.createSource.Init()
+        case create.BranchSourceRemote:
+            m.view = ViewRemoteBranch
+            m.remoteBranch = views.NewRemoteBranchModel(m.repoPath)
+            return m, m.remoteBranch.Init()
+        default:
+            m.view = ViewFileSelect
+            m.fileSelect = views.NewFileSelectModel(m.repoPath)
+            return m, m.fileSelect.Init()
+        }
+    }
+
+    return m, cmd
+}
+```
 
 ## Architecture Summary
 

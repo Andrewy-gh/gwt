@@ -23,23 +23,39 @@ const (
 
 // Model is the root model that manages view switching
 type Model struct {
-	view   View
-	width  int
-	height int
-	keys   KeyMap
-	err    error
+	view     View
+	width    int
+	height   int
+	keys     KeyMap
+	err      error
+	repoPath string
 
 	// Sub-models for each view
-	menu *views.MenuModel
-	// Additional view models will be added in Phase 12
+	menu           *views.MenuModel
+	createBranch   *views.CreateBranchModel
+	createSource   *views.CreateSourceModel
+	remoteBranch   *views.RemoteBranchModel
+	fileSelect     *views.FileSelectModel
+	dockerMode     *views.DockerModeModel
+	worktreeList   *views.WorktreeListModel
+	deleteConfirm  *views.DeleteConfirmModel
+	fetchingView   *views.FetchingModel
+	copyingView    *views.CopyingModel
+	creatingView   *views.CreatingModel
+	deletingView   *views.DeletingModel
+
+	// Shared state for multi-step create flow
+	createFlowState *CreateFlowState
 }
 
 // New creates a new root model
-func New() Model {
+func New(repoPath string) Model {
 	return Model{
-		view: ViewMenu,
-		keys: DefaultKeyMap,
-		menu: views.NewMenuModel(),
+		view:            ViewMenu,
+		keys:            DefaultKeyMap,
+		repoPath:        repoPath,
+		menu:            views.NewMenuModel(),
+		createFlowState: NewCreateFlowState(),
 	}
 }
 
@@ -67,7 +83,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch m.view {
 	case ViewMenu:
 		return m.updateMenu(msg)
-	// Additional view handlers will be added in Phase 12
+	case ViewCreateBranch:
+		return m.updateCreateBranch(msg)
+	case ViewCreateSource:
+		return m.updateCreateSource(msg)
+	case ViewRemoteBranch:
+		return m.updateRemoteBranch(msg)
+	case ViewFileSelect:
+		return m.updateFileSelect(msg)
+	case ViewDockerMode:
+		return m.updateDockerMode(msg)
+	case ViewWorktreeList:
+		return m.updateWorktreeList(msg)
+	case ViewDeleteConfirm:
+		return m.updateDeleteConfirm(msg)
+	case ViewProgress:
+		return m.updateProgress(msg)
 	default:
 		return m, nil
 	}
@@ -82,10 +113,48 @@ func (m Model) View() string {
 	switch m.view {
 	case ViewMenu:
 		return m.menu.View(m.width, m.height)
-	// Additional view renderers will be added in Phase 12
-	default:
-		return "Unknown view"
+	case ViewCreateBranch:
+		if m.createBranch != nil {
+			return m.createBranch.View(m.width, m.height)
+		}
+	case ViewCreateSource:
+		if m.createSource != nil {
+			return m.createSource.View(m.width, m.height)
+		}
+	case ViewRemoteBranch:
+		if m.remoteBranch != nil {
+			return m.remoteBranch.View(m.width, m.height)
+		}
+	case ViewFileSelect:
+		if m.fileSelect != nil {
+			return m.fileSelect.View(m.width, m.height)
+		}
+	case ViewDockerMode:
+		if m.dockerMode != nil {
+			return m.dockerMode.View(m.width, m.height)
+		}
+	case ViewWorktreeList:
+		if m.worktreeList != nil {
+			return m.worktreeList.View(m.width, m.height)
+		}
+	case ViewDeleteConfirm:
+		if m.deleteConfirm != nil {
+			return m.deleteConfirm.View(m.width, m.height)
+		}
+	case ViewProgress:
+		// Progress view can be fetching, copying, creating, or deleting
+		if m.fetchingView != nil {
+			return m.fetchingView.View(m.width, m.height)
+		} else if m.copyingView != nil {
+			return m.copyingView.View(m.width, m.height)
+		} else if m.creatingView != nil {
+			return m.creatingView.View(m.width, m.height)
+		} else if m.deletingView != nil {
+			return m.deletingView.View(m.width, m.height)
+		}
 	}
+
+	return "Unknown view"
 }
 
 // updateMenu handles updates for the menu view
