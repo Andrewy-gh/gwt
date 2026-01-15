@@ -6,9 +6,9 @@ Implement all interactive TUI views for the GWT application, building on the Pha
 
 ## Implementation Progress
 
-**Status**: 11/13 steps completed (85%)
+**Status**: 13/13 steps completed (100%) ✅ COMPLETE
 
-### ✅ Completed (Steps 1-10, 13)
+### ✅ Completed (Steps 1-13)
 
 1. **Foundation Files** - `internal/tui/messages.go`, `internal/tui/flow.go`
    - Custom Bubble Tea messages for view transitions, operations, and async events
@@ -78,20 +78,19 @@ Implement all interactive TUI views for the GWT application, building on the Pha
     - detectDockerCmd() for compose file detection
     - discoverFilesCmd() for background file scanning
 
-### 🚧 Remaining (Steps 11-12)
-
-11. **Root Model Integration** - `internal/tui/model.go` (PARTIAL)
-    - ✅ Extended Model struct with all view sub-models
-    - ✅ Added repoPath and createFlowState fields
-    - ✅ Extended View() with all view renderers
-    - ✅ Extended Update() switch to delegate to all views
-    - ⏳ Need to implement individual update handler methods (updateCreateBranch, updateCreateSource, etc.)
-    - ⏳ Need to implement view initialization methods
-    - ⏳ Need to handle view transitions and state management
+11. **Root Model Integration** - `internal/tui/model.go`
+    - Extended Model struct with all view sub-models
+    - Added repoPath and createFlowState fields
+    - Extended View() with all view renderers
+    - Extended Update() switch to delegate to all views
+    - Implemented all 8 update handler methods (updateCreateBranch, updateCreateSource, updateRemoteBranch, updateFileSelect, updateDockerMode, updateWorktreeList, updateDeleteConfirm, updateProgress)
+    - Implemented view initialization and transitions based on flow state
+    - Full state management with view history and back navigation
 
 12. **Menu Integration** - `internal/tui/views/menu.go`
-    - Update menu actions to trigger view transitions
-    - Pass repository path to views
+    - Added GetSelection() method for menu item identification
+    - Updated menu actions to trigger view transitions
+    - Repository path passed through all views
 
 ### Files Created
 
@@ -111,13 +110,18 @@ Implement all interactive TUI views for the GWT application, building on the Pha
 - ✅ `internal/tui/views/progress.go` (386 lines)
 - ✅ `internal/tui/operations.go` (323 lines)
 
-**To Modify**:
-- 🚧 `internal/tui/model.go` (partially extended, needs update handlers)
-- ⏳ `internal/tui/views/menu.go` (integrate actions)
+**Modified**:
+- ✅ `internal/tui/model.go` (all update handlers implemented)
+- ✅ `internal/tui/views/menu.go` (GetSelection() added, actions integrated)
+- ✅ `internal/tui/tui.go` (Run() signature updated to accept repoPath)
+- ✅ `internal/tui/operations.go` (Docker options and hooks execution fixed)
+- ✅ `internal/cli/create.go` (TUI integration with repoPath)
 
-### Notes for Next Agent
+## Phase 12 Complete! 🎉
 
-**Completed Work:**
+The TUI is now fully functional with all views integrated. You can launch it with `gwt create` (no flags).
+
+### Completed Work:
 - All view files (steps 1-10, 13) are complete and implemented
 - Views follow consistent patterns: Init/Update/View methods, error handling, async operations
 - Components use Bubble Tea's Elm architecture with message passing
@@ -128,73 +132,26 @@ Implement all interactive TUI views for the GWT application, building on the Pha
 - Operations file provides all async commands for worktree creation, deletion, and data loading
 - All views integrate with existing core packages (git, create, copy, docker, config, hooks)
 
-**Remaining Work:**
-1. **Complete `internal/tui/model.go`** - Need to add ~8 update handler methods:
-   - `updateCreateBranch()` - handle branch input completion, transition to next step
-   - `updateCreateSource()` - handle source selection, transition to file select
-   - `updateRemoteBranch()` - handle remote branch selection, transition to file select
-   - `updateFileSelect()` - handle file selection, transition to docker mode
-   - `updateDockerMode()` - handle docker mode selection, initiate worktree creation
-   - `updateWorktreeList()` - handle selection and delete request, transition to confirm
-   - `updateDeleteConfirm()` - handle confirmation, initiate deletion
-   - `updateProgress()` - handle progress view updates and completion messages
+### Implementation Highlights:
 
-2. **Update `internal/tui/views/menu.go`**:
-   - Modify menu selection handler to transition to appropriate views
-   - "Create Worktree" → initialize createBranch view and switch
-   - "List Worktrees" → initialize worktreeList view and switch
-   - Ensure menu passes repoPath to root model
+**Update Handlers** (internal/tui/model.go):
+- All 8 handlers implemented following the pattern: update → check completion → update state → transition
+- Proper Esc key handling for back navigation through view history
+- Flow state management with conditional view transitions based on branch source type
+- Progress view handling for async operations (create/delete)
 
-3. **Build and Test**:
-   - Run `go mod tidy` to ensure all dependencies
-   - Fix any compilation errors
-   - Test view navigation flow
-   - Ensure New() function signature change is handled in main.go or tui command
+**Menu Integration** (internal/tui/views/menu.go):
+- `GetSelection()` returns "create", "list", "delete", or "config" based on cursor position
+- Menu properly clears selection after processing to allow repeated use
 
-**Critical Implementation Pattern:**
-Each update handler should:
-1. Update the view sub-model
-2. Check for completion/cancellation flags (view.ShouldCancel(), view.IsComplete(), etc.)
-3. Handle state updates (update createFlowState for create flow)
-4. Transition to next view or return to menu
-5. Return commands for async operations when needed
+**Operations Fixed** (internal/tui/operations.go):
+- Docker setup uses correct field names: MainWorktree, NewWorktree, ComposeConfig, DataDirectories, BranchName
+- Hooks execution uses Executor pattern with proper ExecuteOptions
+- Both post-create and post-delete hooks execute with correct context
 
-**Example Pattern:**
-```go
-func (m Model) updateCreateBranch(msg tea.Msg) (tea.Model, tea.Cmd) {
-    var cmd tea.Cmd
-    m.createBranch, cmd = m.createBranch.Update(msg)
-
-    if m.createBranch.IsCancelled() {
-        m.view = ViewMenu
-        return m, nil
-    }
-
-    if m.createBranch.IsComplete() {
-        // Save to flow state
-        m.createFlowState.BranchSpec = m.createBranch.GetBranchSpec()
-        m.createFlowState.SourceType = m.createBranch.GetSourceType()
-
-        // Determine next view based on source type
-        switch m.createFlowState.SourceType {
-        case create.BranchSourceNewFromRef:
-            m.view = ViewCreateSource
-            m.createSource = views.NewCreateSourceModel(m.repoPath)
-            return m, m.createSource.Init()
-        case create.BranchSourceRemote:
-            m.view = ViewRemoteBranch
-            m.remoteBranch = views.NewRemoteBranchModel(m.repoPath)
-            return m, m.remoteBranch.Init()
-        default:
-            m.view = ViewFileSelect
-            m.fileSelect = views.NewFileSelectModel(m.repoPath)
-            return m, m.fileSelect.Init()
-        }
-    }
-
-    return m, cmd
-}
-```
+**TUI Entry Points** (internal/tui/tui.go, internal/cli/create.go):
+- Run() and RunWithContext() now require repoPath parameter
+- CLI properly detects repo path before launching TUI
 
 ## Architecture Summary
 

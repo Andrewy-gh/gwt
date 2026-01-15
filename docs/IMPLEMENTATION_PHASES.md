@@ -121,23 +121,29 @@ A phased breakdown of the Git Worktree Manager implementation.
 
 ## Phase 12: TUI Views
 
-- [ ] Build create worktree flow (branch input, source selection)
-- [ ] Build remote branch selection with filter/refresh
-- [ ] Build file selection view with checkboxes
-- [ ] Build Docker mode selection view
-- [ ] Build worktree list view with batch selection
-- [ ] Implement delete confirmation with pre-flight checks display
+- [X] Build create worktree flow (branch input, source selection)
+- [X] Build remote branch selection with filter/refresh
+- [X] Build file selection view with checkboxes
+- [X] Build Docker mode selection view
+- [X] Build worktree list view with batch selection
+- [X] Implement delete confirmation with pre-flight checks display
+- [X] Wire all views to root model with update handlers
+- [X] Implement flow state management with view history
+- [X] Add async operations for all long-running tasks
+- [X] Create progress views for creation and deletion
 
 ---
 
-## Phase 13: Integration & Polish
+## Phase 13: Polish & Advanced Features
 
-- [ ] Wire TUI views to core operations
-- [ ] Add `--no-tui` flag for simple prompts fallback
-- [ ] Implement progress indicators for long operations
-- [ ] Add comprehensive error messages
-- [ ] Test Windows symlink/junction fallback
-- [ ] Write README with usage examples
+- [X] TUI fully integrated with core operations (completed in Phase 12)
+- [X] `--no-tui` flag available (completed in Phase 11)
+- [X] Progress indicators implemented (completed in Phase 12)
+- [ ] Add branch cleanup utilities
+- [ ] Implement advanced filtering and search
+- [ ] Add configuration editor UI
+- [ ] Test and document all Windows-specific behavior
+- [ ] Performance optimization for large repositories
 
 ---
 

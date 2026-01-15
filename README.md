@@ -96,18 +96,30 @@ A powerful CLI tool for managing Git worktrees, making it easy to work with mult
 **Phase 11: TUI Framework**
 - **Bubble Tea application** - Modern terminal UI built on Charm libraries
 - **Lip Gloss theming** - Purple (#7C3AED) and Cyan (#06B6D4) color scheme
-- **Reusable components** - Checkbox list, text input, table, help footer
+- **Reusable components** - Checkbox list, text input, table, radio list, spinner, progress bars
 - **Vim-style navigation** - Support for j/k keys alongside arrow keys
 - **Main menu** - Interactive menu with Create, List, Delete, Configuration options
-- **Keyboard shortcuts** - Enter to select, q to quit, customizable bindings
+- **Keyboard shortcuts** - Enter to select, Esc to go back, q to quit, customizable bindings
 - **CLI integration** - TUI launches automatically with `gwt create` (no flags)
 - **Fallback mode** - Use `--no-tui` for non-interactive operation
 
+**Phase 12: TUI Views**
+- **Create worktree flow** - Branch selection → source/remote (conditional) → file selection → Docker mode → progress
+- **Branch input view** - Branch name with inline validation, source type selection (new from HEAD/ref, existing, remote)
+- **Source selection view** - Reference/commit/tag input with suggestions for new branches
+- **Remote branch view** - Filterable table of remote branches with real-time fetch capability
+- **File selection view** - Checkbox list with size display, pre-selection from config, async file discovery
+- **Docker mode view** - Radio selection for None/Shared/New modes with auto-detection and info boxes
+- **Worktree list view** - Table with status indicators (clean/dirty/warnings), batch selection for deletion
+- **Delete confirmation** - Pre-flight checks (blocking/warnings), confirmation prompt with safety checks
+- **Progress views** - Real-time feedback for fetching, copying, creating, and deleting operations
+- **Flow state management** - View history for back navigation, conditional transitions based on selections
+- **Async operations** - Background file discovery, Docker detection, worktree creation/deletion with hooks
+
 ### Planned
-- TUI views for create/delete flows (Phase 12)
-- Branch selection with filtering
-- File selection interface
 - Branch cleanup utilities
+- Advanced filtering and search
+- Configuration editor UI
 
 ## Installation
 
@@ -484,19 +496,33 @@ gwt/
 │   │   └── output_test.go
 │   ├── testutil/         # Test utilities
 │   │   └── git.go        # Git test helpers
-│   ├── tui/              # TUI framework (Phase 11)
+│   ├── tui/              # TUI framework (Phases 11-12)
 │   │   ├── tui.go        # TUI entry point and runner
-│   │   ├── model.go      # Root model with view switching
+│   │   ├── model.go      # Root model with view switching and update handlers
+│   │   ├── messages.go   # Custom Bubble Tea messages
+│   │   ├── flow.go       # Create/delete flow state management
+│   │   ├── operations.go # Async operation commands
 │   │   ├── keys.go       # Key bindings definitions
 │   │   ├── styles/
 │   │   │   └── styles.go # Lip Gloss theme and styles
 │   │   ├── components/
-│   │   │   ├── list.go   # Checkbox list component
-│   │   │   ├── input.go  # Text input component
-│   │   │   ├── table.go  # Table display component
-│   │   │   └── help.go   # Help footer component
+│   │   │   ├── list.go     # Checkbox list component
+│   │   │   ├── input.go    # Text input component
+│   │   │   ├── table.go    # Table display component
+│   │   │   ├── radio.go    # Radio button list component
+│   │   │   ├── spinner.go  # Loading spinner component
+│   │   │   ├── progress.go # Progress bar component
+│   │   │   └── help.go     # Help footer component
 │   │   └── views/
-│   │       └── menu.go   # Main menu view
+│   │       ├── menu.go           # Main menu view
+│   │       ├── create_branch.go  # Branch input view
+│   │       ├── create_source.go  # Source selection view
+│   │       ├── remote_branch.go  # Remote branch selection
+│   │       ├── file_select.go    # File selection view
+│   │       ├── docker_mode.go    # Docker mode selection
+│   │       ├── worktree_list.go  # Worktree list view
+│   │       ├── delete_confirm.go # Delete confirmation
+│   │       └── progress.go       # Progress views
 │   └── version/          # Version information
 │       ├── version.go
 │       └── version_test.go
@@ -591,7 +617,8 @@ This project follows a phased implementation approach:
 - **Phase 9** (✓ Complete) - Database migrations with auto-detection
 - **Phase 10** (✓ Complete) - Post-setup hooks with environment variables
 - **Phase 11** (✓ Complete) - TUI framework with Bubble Tea and reusable components
-- **Phase 12+** (Planned) - TUI views for create/delete flows, interactive selection
+- **Phase 12** (✓ Complete) - TUI views for create/delete flows with interactive selection
+- **Phase 13+** (Planned) - Branch cleanup utilities, advanced features
 
 See [docs/IMPLEMENTATION_PHASES.md](docs/IMPLEMENTATION_PHASES.md) for details.
 
