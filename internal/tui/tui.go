@@ -7,9 +7,9 @@ import (
 )
 
 // Run starts the TUI application
-func Run() error {
+func Run(repoPath string) error {
 	p := tea.NewProgram(
-		New(),
+		New(repoPath),
 		tea.WithAltScreen(),       // Use alternate screen buffer
 		tea.WithMouseCellMotion(), // Enable mouse support
 	)
@@ -31,8 +31,8 @@ func Run() error {
 
 // RunWithContext starts the TUI with context data
 // This can be used to pass initial state to the TUI
-func RunWithContext(initialView View, data interface{}) error {
-	m := New()
+func RunWithContext(repoPath string, initialView View, data interface{}) error {
+	m := New(repoPath)
 	m.view = initialView
 
 	p := tea.NewProgram(
@@ -57,12 +57,12 @@ func RunWithContext(initialView View, data interface{}) error {
 
 // RunWithResult starts TUI and returns the result
 // This is useful for views that return data (like branch selection)
-func RunWithResult[T any]() (T, error) {
+func RunWithResult[T any](repoPath string) (T, error) {
 	var result T
 
 	// This will be implemented in Phase 12 when we have
 	// views that need to return data
-	err := Run()
+	err := Run(repoPath)
 	return result, err
 }
 

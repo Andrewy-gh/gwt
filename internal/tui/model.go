@@ -167,10 +167,343 @@ func (m Model) updateMenu(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	}
 
-	// Handle menu selection (Phase 12 will implement view transitions)
+	// Handle menu selection
 	if m.menu.HasSelection() {
-		// Future: transition to selected view
-		// For now, just stay on menu
+		selection := m.menu.GetSelection()
+		m.menu.ClearSelection() // Clear selection for next time
+
+		switch selection {
+		case "create":
+			// Start create worktree flow
+			m.createFlowState.Reset()
+			m.view = ViewCreateBranch
+			m.createBranch = views.NewCreateBranchModel(m.repoPath)
+			return m, m.createBranch.Init()
+
+		case "list", "delete":
+			// Go to worktree list view (delete is handled within the list)
+			m.view = ViewWorktreeList
+			m.worktreeList = views.NewWorktreeListModel(m.repoPath)
+			return m, m.worktreeList.Init()
+		}
+	}
+
+	return m, cmd
+}
+
+// updateCreateBranch handles updates for the create branch view
+func (m Model) updateCreateBranch(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Check for Esc key to return to menu
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		if key.Matches(keyMsg, key.NewBinding(key.WithKeys("esc"))) {
+			m.view = ViewMenu
+			return m, nil
+		}
+	}
+
+	// Update the view
+	var cmd tea.Cmd
+	m.createBranch, cmd = m.createBranch.Update(msg)
+
+	// Check if view is complete
+	if m.createBranch.IsComplete() {
+		// Save to flow state
+		m.createFlowState.BranchSpec = m.createBranch.GetBranchSpec()
+		m.createFlowState.SourceType = m.createFlowState.BranchSpec.Source
+		m.createFlowState.BranchInput = m.createFlowState.BranchSpec.BranchName
+		m.createFlowState.CalculateTotalSteps()
+		m.createFlowState.PushView(ViewCreateBranch)
+
+		// Determine next view based on source type
+		nextView := m.createFlowState.NextView()
+		m.view = nextView
+
+		switch nextView {
+		case ViewCreateSource:
+			m.createSource = views.NewCreateSourceModel(m.repoPath)
+			return m, m.createSource.Init()
+		case ViewRemoteBranch:
+			m.remoteBranch = views.NewRemoteBranchModel(m.repoPath)
+			return m, m.remoteBranch.Init()
+		case ViewFileSelect:
+			m.fileSelect = views.NewFileSelectModel(m.repoPath)
+			return m, m.fileSelect.Init()
+		}
+	}
+
+	return m, cmd
+}
+
+// updateCreateSource handles updates for the create source view
+func (m Model) updateCreateSource(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Check for Esc key to go back or return to menu
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		if key.Matches(keyMsg, key.NewBinding(key.WithKeys("esc"))) {
+			// Go back to previous view or menu
+			if prevView, ok := m.createFlowState.PopView(); ok {
+				m.view = prevView
+				return m, nil
+			}
+			m.view = ViewMenu
+			return m, nil
+		}
+	}
+
+	// Update the view
+	var cmd tea.Cmd
+	m.createSource, cmd = m.createSource.Update(msg)
+
+	// Check if view is complete
+	if m.createSource.IsComplete() {
+		// Save to flow state
+		m.createFlowState.StartPoint = m.createSource.GetStartPoint()
+		m.createFlowState.PushView(ViewCreateSource)
+
+		// Move to file select
+		m.view = ViewFileSelect
+		m.fileSelect = views.NewFileSelectModel(m.repoPath)
+		return m, m.fileSelect.Init()
+	}
+
+	return m, cmd
+}
+
+// updateRemoteBranch handles updates for the remote branch view
+func (m Model) updateRemoteBranch(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Check for Esc key to go back or return to menu
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		if key.Matches(keyMsg, key.NewBinding(key.WithKeys("esc"))) {
+			// Go back to previous view or menu
+			if prevView, ok := m.createFlowState.PopView(); ok {
+				m.view = prevView
+				return m, nil
+			}
+			m.view = ViewMenu
+			return m, nil
+		}
+	}
+
+	// Update the view
+	var cmd tea.Cmd
+	m.remoteBranch, cmd = m.remoteBranch.Update(msg)
+
+	// Check if view is complete
+	if m.remoteBranch.IsComplete() {
+		// Save to flow state
+		m.createFlowState.SelectedRemote = m.remoteBranch.GetSelected()
+		m.createFlowState.PushView(ViewRemoteBranch)
+
+		// Move to file select
+		m.view = ViewFileSelect
+		m.fileSelect = views.NewFileSelectModel(m.repoPath)
+		return m, m.fileSelect.Init()
+	}
+
+	return m, cmd
+}
+
+// updateFileSelect handles updates for the file select view
+func (m Model) updateFileSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Check for Esc key to go back or return to menu
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		if key.Matches(keyMsg, key.NewBinding(key.WithKeys("esc"))) {
+			// Go back to previous view or menu
+			if prevView, ok := m.createFlowState.PopView(); ok {
+				m.view = prevView
+				return m, nil
+			}
+			m.view = ViewMenu
+			return m, nil
+		}
+	}
+
+	// Update the view
+	var cmd tea.Cmd
+	m.fileSelect, cmd = m.fileSelect.Update(msg)
+
+	// Check if view is complete
+	if m.fileSelect.IsComplete() {
+		// Save to flow state
+		m.createFlowState.FileSelection = m.fileSelect.GetSelection()
+		m.createFlowState.PushView(ViewFileSelect)
+
+		// Move to docker mode
+		m.view = ViewDockerMode
+		m.dockerMode = views.NewDockerModeModel(m.repoPath)
+		return m, m.dockerMode.Init()
+	}
+
+	return m, cmd
+}
+
+// updateDockerMode handles updates for the docker mode view
+func (m Model) updateDockerMode(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Check for Esc key to go back or return to menu
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		if key.Matches(keyMsg, key.NewBinding(key.WithKeys("esc"))) {
+			// Go back to previous view or menu
+			if prevView, ok := m.createFlowState.PopView(); ok {
+				m.view = prevView
+				return m, nil
+			}
+			m.view = ViewMenu
+			return m, nil
+		}
+	}
+
+	// Update the view
+	var cmd tea.Cmd
+	m.dockerMode, cmd = m.dockerMode.Update(msg)
+
+	// Check if view is complete
+	if m.dockerMode.IsComplete() {
+		// Save to flow state
+		m.createFlowState.DockerMode = m.dockerMode.GetSelectedMode()
+		m.createFlowState.ComposeDetected = m.dockerMode.IsComposeDetected()
+		m.createFlowState.ComposeConfig = m.dockerMode.GetComposeConfig()
+		m.createFlowState.ComposeFiles = m.dockerMode.GetComposeFiles()
+
+		// Start the worktree creation operation
+		m.view = ViewProgress
+		m.creatingView = views.NewCreatingModel()
+		return m, tea.Batch(
+			m.creatingView.Init(),
+			createWorktreeCmd(m.createFlowState, m.repoPath),
+		)
+	}
+
+	return m, cmd
+}
+
+// updateWorktreeList handles updates for the worktree list view
+func (m Model) updateWorktreeList(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Check for Esc key or cancel to return to menu
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		if key.Matches(keyMsg, key.NewBinding(key.WithKeys("esc"))) {
+			m.view = ViewMenu
+			return m, nil
+		}
+	}
+
+	// Update the view
+	var cmd tea.Cmd
+	m.worktreeList, cmd = m.worktreeList.Update(msg)
+
+	// Check if user cancelled
+	if m.worktreeList.ShouldCancel() {
+		m.view = ViewMenu
+		return m, nil
+	}
+
+	// Check if user requested deletion
+	if m.worktreeList.ShouldDelete() {
+		// Get selected paths and create delete confirmation view
+		selectedPaths := m.worktreeList.GetSelectedPaths()
+		if len(selectedPaths) > 0 {
+			m.view = ViewDeleteConfirm
+			m.deleteConfirm = views.NewDeleteConfirmModel(m.repoPath, selectedPaths)
+			return m, m.deleteConfirm.Init()
+		}
+	}
+
+	return m, cmd
+}
+
+// updateDeleteConfirm handles updates for the delete confirmation view
+func (m Model) updateDeleteConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Update the view
+	var cmd tea.Cmd
+	m.deleteConfirm, cmd = m.deleteConfirm.Update(msg)
+
+	// Check if user cancelled
+	if m.deleteConfirm.IsCancelled() {
+		// Go back to worktree list
+		m.view = ViewWorktreeList
+		return m, nil
+	}
+
+	// Check if user confirmed
+	if m.deleteConfirm.IsConfirmed() {
+		// Get non-blocked targets and start deletion
+		targets := m.deleteConfirm.GetNonBlockedTargets()
+		if len(targets) > 0 {
+			// Extract paths from targets
+			paths := make([]string, 0, len(targets))
+			for _, target := range targets {
+				paths = append(paths, target.Worktree.Path)
+			}
+
+			m.view = ViewProgress
+			m.deletingView = views.NewDeletingModel(paths)
+			return m, tea.Batch(
+				m.deletingView.Init(),
+				deleteWorktreesCmd(m.repoPath, paths, false),
+			)
+		} else {
+			// No targets to delete, return to worktree list
+			m.view = ViewWorktreeList
+			return m, nil
+		}
+	}
+
+	return m, cmd
+}
+
+// updateProgress handles updates for progress views
+func (m Model) updateProgress(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case CreateCompleteMsg:
+		// Worktree creation completed
+		if msg.Error != nil {
+			m.err = msg.Error
+			m.view = ViewMenu
+			return m, nil
+		}
+
+		// Success - return to menu
+		m.view = ViewMenu
+		// Reset create flow state for next time
+		m.createFlowState.Reset()
+		return m, nil
+
+	case DeleteCompleteMsg:
+		// Deletion completed
+		if msg.Error != nil {
+			m.err = msg.Error
+		}
+
+		// Return to worktree list to show updated list
+		m.view = ViewWorktreeList
+		m.worktreeList = views.NewWorktreeListModel(m.repoPath)
+		return m, m.worktreeList.Init()
+
+	case CreateProgressMsg:
+		// Update creating view with progress
+		if m.creatingView != nil {
+			var cmd tea.Cmd
+			m.creatingView, cmd = m.creatingView.Update(msg)
+			return m, cmd
+		}
+
+	case DeleteProgressMsg:
+		// Update deleting view with progress
+		if m.deletingView != nil {
+			var cmd tea.Cmd
+			m.deletingView, cmd = m.deletingView.Update(msg)
+			return m, cmd
+		}
+	}
+
+	// Delegate to active progress view
+	var cmd tea.Cmd
+	if m.fetchingView != nil {
+		m.fetchingView, cmd = m.fetchingView.Update(msg)
+	} else if m.copyingView != nil {
+		m.copyingView, cmd = m.copyingView.Update(msg)
+	} else if m.creatingView != nil {
+		m.creatingView, cmd = m.creatingView.Update(msg)
+	} else if m.deletingView != nil {
+		m.deletingView, cmd = m.deletingView.Update(msg)
 	}
 
 	return m, cmd

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/Andrewy-gh/gwt/internal/config"
 	"github.com/Andrewy-gh/gwt/internal/copy"
 	"github.com/Andrewy-gh/gwt/internal/create"
 	"github.com/Andrewy-gh/gwt/internal/docker"
@@ -104,17 +105,21 @@ func createWorktreeCmd(state *CreateFlowState, repoPath string) tea.Cmd {
 			case "shared":
 				// Symlink data directories
 				_, err = docker.SetupSharedMode(docker.SharedModeOptions{
-					SourceDir: repoPath,
-					TargetDir: worktreePath,
-					Config:    state.ComposeConfig,
+					MainWorktree:    repoPath,
+					NewWorktree:     worktreePath,
+					ComposeConfig:   state.ComposeConfig,
+					DataDirectories: nil, // Will use defaults from config/detection
 				})
 
 			case "new":
 				// Create isolated containers
 				_, err = docker.SetupNewMode(docker.NewModeOptions{
-					SourceDir: repoPath,
-					TargetDir: worktreePath,
-					Config:    state.ComposeConfig,
+					MainWorktree:    repoPath,
+					NewWorktree:     worktreePath,
+					BranchName:      state.BranchSpec.BranchName,
+					ComposeConfig:   state.ComposeConfig,
+					DataDirectories: nil, // Will use defaults from config/detection
+					PortOffset:      0,   // Auto-detect
 				})
 			}
 
@@ -128,10 +133,22 @@ func createWorktreeCmd(state *CreateFlowState, repoPath string) tea.Cmd {
 		}
 
 		// Stage 4: Run post-creation hooks
-		hookErr := hooks.ExecutePostCreation(repoPath, worktreePath)
-		if hookErr != nil {
-			// Don't fail the entire operation for hook errors, just warn
-			// (hooks are best-effort)
+		// Load config and execute hooks (best-effort)
+		cfg, _ := config.Load(repoPath)
+		if cfg != nil {
+			executor := hooks.NewExecutor(repoPath, cfg)
+			mainWorktree, _ := git.GetMainWorktree(repoPath)
+			mainPath := repoPath
+			if mainWorktree != nil {
+				mainPath = mainWorktree.Path
+			}
+
+			_, _ = executor.Execute(hooks.ExecuteOptions{
+				HookType:         hooks.HookTypePostCreate,
+				WorktreePath:     worktreePath,
+				WorktreeBranch:   state.BranchSpec.BranchName,
+				MainWorktreePath: mainPath,
+			})
 		}
 
 		// Success!
@@ -192,7 +209,21 @@ func deleteWorktreesCmd(repoPath string, targets []string, force bool) tea.Cmd {
 				deleted = append(deleted, path)
 
 				// Run post-deletion hooks (best-effort)
-				_ = hooks.ExecutePostDeletion(repoPath, path)
+				cfg, _ := config.Load(repoPath)
+				if cfg != nil {
+					executor := hooks.NewExecutor(repoPath, cfg)
+					mainWorktree, _ := git.GetMainWorktree(repoPath)
+					mainPath := repoPath
+					if mainWorktree != nil {
+						mainPath = mainWorktree.Path
+					}
+
+					_, _ = executor.Execute(hooks.ExecuteOptions{
+						HookType:         hooks.HookTypePostDelete,
+						WorktreePath:     path,
+						MainWorktreePath: mainPath,
+					})
+				}
 			}
 		}
 
@@ -300,7 +331,15 @@ func validateBranchCmd(repoPath string, branchName string, sourceType create.Bra
 func detectDockerCmd(repoPath string) tea.Cmd {
 	return func() tea.Msg {
 		// Detect compose files
-		files := docker.DetectComposeFiles(repoPath)
+		files, err := docker.DetectComposeFiles(repoPath)
+		if err != nil {
+			return DetectDockerCompleteMsg{
+				Detected: false,
+				Config:   nil,
+				Files:    nil,
+				Error:    err,
+			}
+		}
 
 		if len(files) == 0 {
 			return DetectDockerCompleteMsg{
@@ -313,7 +352,6 @@ func detectDockerCmd(repoPath string) tea.Cmd {
 
 		// Parse compose files
 		var config *docker.ComposeConfig
-		var err error
 
 		for _, file := range files {
 			config, err = docker.ParseComposeFile(file.Path)

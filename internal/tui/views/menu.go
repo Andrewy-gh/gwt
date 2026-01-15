@@ -152,6 +152,22 @@ func (m *MenuModel) ClearSelection() {
 	m.selected = false
 }
 
+// GetSelection returns a string identifier for the selected menu item
+func (m *MenuModel) GetSelection() string {
+	switch m.cursor {
+	case 0:
+		return "create"
+	case 1:
+		return "list"
+	case 2:
+		return "delete"
+	case 3:
+		return "config"
+	default:
+		return ""
+	}
+}
+
 // ShouldQuit returns true if the user wants to quit
 func (m *MenuModel) ShouldQuit() bool {
 	return m.shouldQuit

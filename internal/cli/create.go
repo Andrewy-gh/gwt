@@ -85,24 +85,24 @@ func init() {
 
 // runCreate is the main entry point for the create command
 func runCreate(cmd *cobra.Command, args []string) error {
-	// 1. Validate that at least one branch source is specified
+	// 1. Validate we're in a git repository (needed for both TUI and CLI)
+	repoPath, err := getRepoPath(".")
+	if err != nil {
+		return err
+	}
+
+	// 2. Validate that at least one branch source is specified
 	if !hasAnyBranchFlag(createOpts) {
 		// No flags provided - launch TUI if enabled
 		if GetNoTUI() {
 			return fmt.Errorf("no branch specified; use --branch, --checkout, or --remote")
 		}
-		// Launch TUI (Phase 12 will implement the full flow)
-		return tui.Run()
+		// Launch TUI with repo path
+		return tui.Run(repoPath)
 	}
 
-	// 2. Validate flag combinations
+	// 3. Validate flag combinations
 	if err := validateCreateOptions(createOpts); err != nil {
-		return err
-	}
-
-	// 3. Validate we're in a git repository
-	repoPath, err := getRepoPath(".")
-	if err != nil {
 		return err
 	}
 
