@@ -6,6 +6,7 @@ import (
 
 	"github.com/Andrewy-gh/gwt/internal/git"
 	"github.com/spf13/viper"
+	"gopkg.in/yaml.v3"
 )
 
 const configFileName = ".worktree.yaml"
@@ -285,4 +286,49 @@ func IsInheritedConfig(dir string) (bool, error) {
 	}
 
 	return false, nil // No config at all, using defaults
+}
+
+// Save writes the configuration to a file at the specified directory
+// If the config file doesn't exist, it creates a new one
+func Save(dir string, cfg *Config) error {
+	// Convert to absolute path
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		return err
+	}
+
+	// Get the repository root if we're in a git repo
+	if git.IsGitRepository(absDir) {
+		repoRoot, err := git.GetRepoRoot(absDir)
+		if err == nil {
+			absDir = repoRoot
+		}
+	}
+
+	// Determine config file path
+	configPath := filepath.Join(absDir, configFileName)
+
+	// Validate the config before saving
+	if validationErrors := cfg.Validate(); len(validationErrors) > 0 {
+		return &validationErrors[0]
+	}
+
+	// Marshal to YAML
+	data, err := yaml.Marshal(cfg)
+	if err != nil {
+		return &ConfigParseError{
+			Path: configPath,
+			Err:  err,
+		}
+	}
+
+	// Write to file
+	if err := os.WriteFile(configPath, data, 0644); err != nil {
+		return &ConfigParseError{
+			Path: configPath,
+			Err:  err,
+		}
+	}
+
+	return nil
 }

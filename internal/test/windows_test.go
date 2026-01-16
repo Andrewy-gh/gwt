@@ -359,22 +359,27 @@ func TestHookExecutionWithCmdExe(t *testing.T) {
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.txt")
 
-	// Create a simple hook that writes to a file
-	hook := `echo hello > "` + testFile + `"`
+	// Create a simple command that writes to a file
+	cmd := `echo hello > "` + testFile + `"`
 
-	// Execute the hook
-	executor := hooks.NewExecutor(tmpDir)
-	err := executor.Execute([]string{hook}, map[string]string{
-		"TEST_VAR": "test_value",
+	// Execute the command using low-level ExecuteCommand
+	result, err := hooks.ExecuteCommand(hooks.ExecOptions{
+		Command: cmd,
+		Dir:     tmpDir,
+		Env:     []string{"TEST_VAR=test_value"},
 	})
 
 	if err != nil {
-		t.Fatalf("hook execution failed: %v", err)
+		t.Fatalf("command execution failed: %v", err)
+	}
+
+	if result.ExitCode != 0 {
+		t.Fatalf("command failed with exit code %d: %s", result.ExitCode, result.Stderr)
 	}
 
 	// Verify output file was created
 	if _, err := os.Stat(testFile); os.IsNotExist(err) {
-		t.Fatalf("hook did not create expected file")
+		t.Fatalf("command did not create expected file")
 	}
 
 	// Read content
@@ -407,11 +412,17 @@ echo Batch file executed > "` + outputFile + `"`
 		t.Fatalf("failed to create batch file: %v", err)
 	}
 
-	// Execute the batch file as a hook
-	executor := hooks.NewExecutor(tmpDir)
-	err := executor.Execute([]string{batchFile}, nil)
+	// Execute the batch file
+	result, err := hooks.ExecuteCommand(hooks.ExecOptions{
+		Command: batchFile,
+		Dir:     tmpDir,
+	})
 	if err != nil {
 		t.Fatalf("batch file execution failed: %v", err)
+	}
+
+	if result.ExitCode != 0 {
+		t.Fatalf("batch file failed with exit code %d: %s", result.ExitCode, result.Stderr)
 	}
 
 	// Verify output
@@ -430,12 +441,18 @@ func TestHookWithPowerShell(t *testing.T) {
 	outputFile := filepath.Join(tmpDir, "output.txt")
 
 	// PowerShell command to write to file
-	hook := `powershell -Command "Set-Content -Path '` + outputFile + `' -Value 'PowerShell executed'"`
+	cmd := `powershell -Command "Set-Content -Path '` + outputFile + `' -Value 'PowerShell executed'"`
 
-	executor := hooks.NewExecutor(tmpDir)
-	err := executor.Execute([]string{hook}, nil)
+	result, err := hooks.ExecuteCommand(hooks.ExecOptions{
+		Command: cmd,
+		Dir:     tmpDir,
+	})
 	if err != nil {
-		t.Fatalf("PowerShell hook execution failed: %v", err)
+		t.Fatalf("PowerShell command execution failed: %v", err)
+	}
+
+	if result.ExitCode != 0 {
+		t.Fatalf("PowerShell failed with exit code %d: %s", result.ExitCode, result.Stderr)
 	}
 
 	// Verify output
@@ -455,17 +472,20 @@ func TestHookEnvironmentVariables(t *testing.T) {
 	tmpDir := t.TempDir()
 	outputFile := filepath.Join(tmpDir, "env.txt")
 
-	// Hook that writes an environment variable to file
-	hook := `echo %TEST_VAR% > "` + outputFile + `"`
+	// Command that writes an environment variable to file
+	cmd := `echo %TEST_VAR% > "` + outputFile + `"`
 
-	env := map[string]string{
-		"TEST_VAR": "test_value_123",
+	result, err := hooks.ExecuteCommand(hooks.ExecOptions{
+		Command: cmd,
+		Dir:     tmpDir,
+		Env:     []string{"TEST_VAR=test_value_123"},
+	})
+	if err != nil {
+		t.Fatalf("command execution failed: %v", err)
 	}
 
-	executor := hooks.NewExecutor(tmpDir)
-	err := executor.Execute([]string{hook}, env)
-	if err != nil {
-		t.Fatalf("hook execution failed: %v", err)
+	if result.ExitCode != 0 {
+		t.Fatalf("command failed with exit code %d: %s", result.ExitCode, result.Stderr)
 	}
 
 	// Verify environment variable was passed
@@ -579,12 +599,12 @@ func TestFileCopyWithLongPaths(t *testing.T) {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
-	// Copy using testutil (if available) or manual copy
-	if err := testutil.CopyDir(filepath.Dir(srcDir), filepath.Dir(dstDir)); err != nil {
-		t.Fatalf("failed to copy directory: %v", err)
+	// Copy using docker.CreateSymlink (which will fall back to copy if needed)
+	if err := docker.CreateSymlink(srcDir, dstDir); err != nil {
+		t.Fatalf("failed to create link/copy: %v", err)
 	}
 
-	// Verify copy
+	// Verify copy/link works
 	dstFile := filepath.Join(dstDir, "test.txt")
 	if data, err := os.ReadFile(dstFile); err != nil {
 		t.Fatalf("failed to read copied file: %v", err)
@@ -640,31 +660,17 @@ func TestGitWorktreeOnWindows(t *testing.T) {
 		t.Skip("Windows-only test")
 	}
 
-	// Setup test repository
-	tmpDir := t.TempDir()
-	repoPath := filepath.Join(tmpDir, "repo")
-
-	// Initialize repository
-	if err := testutil.InitRepo(repoPath); err != nil {
-		t.Fatalf("failed to init repo: %v", err)
-	}
-
-	// Create initial commit
-	testFile := filepath.Join(repoPath, "README.md")
-	if err := os.WriteFile(testFile, []byte("# Test"), 0644); err != nil {
-		t.Fatalf("failed to create file: %v", err)
-	}
-
-	if err := testutil.GitCommit(repoPath, "Initial commit"); err != nil {
-		t.Fatalf("failed to commit: %v", err)
-	}
+	// Setup test repository using testutil
+	repoPath := testutil.CreateTestRepo(t)
 
 	// Add a worktree
-	wtPath := filepath.Join(tmpDir, "worktree", "feature-x")
-	if err := git.AddWorktree(repoPath, wtPath, git.AddWorktreeOptions{
-		Branch:       "feature-x",
-		CreateBranch: true,
-	}); err != nil {
+	wtPath := filepath.Join(filepath.Dir(repoPath), "worktree-feature-x")
+	_, err := git.AddWorktree(repoPath, git.AddWorktreeOptions{
+		Path:      wtPath,
+		Branch:    "feature-x",
+		NewBranch: true,
+	})
+	if err != nil {
 		t.Fatalf("failed to add worktree: %v", err)
 	}
 
@@ -684,7 +690,9 @@ func TestGitWorktreeOnWindows(t *testing.T) {
 	}
 
 	// Remove worktree
-	if err := git.RemoveWorktree(repoPath, wtPath, git.RemoveWorktreeOptions{}); err != nil {
+	if err := git.RemoveWorktree(repoPath, git.RemoveWorktreeOptions{
+		Path: wtPath,
+	}); err != nil {
 		t.Fatalf("failed to remove worktree: %v", err)
 	}
 

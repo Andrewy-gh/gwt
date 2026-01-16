@@ -170,6 +170,19 @@ func copyFile(src, dst string) error {
 	return nil
 }
 
+// CreateSymlink creates a symlink with fallback to junction/copy on Windows
+// This is a convenience wrapper around CreateLink that returns just an error
+func CreateSymlink(source, target string) error {
+	result, err := CreateLink(LinkOptions{
+		Source: source,
+		Target: target,
+	})
+	if result == LinkFailed {
+		return err
+	}
+	return nil
+}
+
 // CanCreateSymlink checks if the current process can create symlinks
 func CanCreateSymlink() bool {
 	// Create a temp file and try to symlink to it

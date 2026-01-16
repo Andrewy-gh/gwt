@@ -32,22 +32,27 @@ func NewMenuModel() *MenuModel {
 			{
 				Title:       "Create Worktree",
 				Description: "Create a new worktree from a branch",
-				Action:      nil, // Will be implemented in Phase 12
+				Action:      nil,
 			},
 			{
 				Title:       "List Worktrees",
 				Description: "View and manage existing worktrees",
-				Action:      nil, // Will be implemented in Phase 12
+				Action:      nil,
 			},
 			{
 				Title:       "Delete Worktree",
 				Description: "Remove worktrees with safety checks",
-				Action:      nil, // Will be implemented in Phase 12
+				Action:      nil,
+			},
+			{
+				Title:       "Cleanup Branches",
+				Description: "Remove merged or stale branches",
+				Action:      nil,
 			},
 			{
 				Title:       "Configuration",
 				Description: "View and edit GWT settings",
-				Action:      nil, // Will be implemented in Phase 12
+				Action:      nil,
 			},
 		},
 		selected:   false,
@@ -162,6 +167,8 @@ func (m *MenuModel) GetSelection() string {
 	case 2:
 		return "delete"
 	case 3:
+		return "cleanup"
+	case 4:
 		return "config"
 	default:
 		return ""

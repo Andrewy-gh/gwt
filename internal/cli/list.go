@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Andrewy-gh/gwt/internal/filter"
 	"github.com/Andrewy-gh/gwt/internal/git"
 	"github.com/Andrewy-gh/gwt/internal/output"
 	"github.com/spf13/cobra"
@@ -12,9 +13,11 @@ import (
 
 // ListOptions holds options for the list command
 type ListOptions struct {
-	JSON   bool // --json: Output as JSON array
-	Simple bool // --simple: Output paths only (one per line)
-	All    bool // -a, --all: Include bare/prunable worktrees
+	JSON       bool     // --json: Output as JSON array
+	Simple     bool     // --simple: Output paths only (one per line)
+	All        bool     // -a, --all: Include bare/prunable worktrees
+	Filter     []string // -f, --filter: Filter expressions
+	FilterHelp bool     // --filter-help: Show filter syntax help
 }
 
 var listOpts ListOptions
@@ -29,10 +32,14 @@ By default, shows worktree path, branch, commit, and status.
 Bare and prunable worktrees are hidden unless --all is specified.
 
 Examples:
-  gwt list                  List all active worktrees
-  gwt list --json           Output as JSON for scripting
-  gwt list --simple         Output paths only, one per line
-  gwt list --all            Include bare and prunable worktrees`,
+  gwt list                            List all active worktrees
+  gwt list --json                     Output as JSON for scripting
+  gwt list --simple                   Output paths only, one per line
+  gwt list --all                      Include bare and prunable worktrees
+  gwt list -f "branch:feature"        Filter by branch name
+  gwt list -f "status:dirty"          Show only dirty worktrees
+  gwt list -f "age:>7d"               Show worktrees older than 7 days
+  gwt list --filter-help              Show filter syntax help`,
 	RunE: runList,
 }
 
@@ -40,6 +47,8 @@ func init() {
 	listCmd.Flags().BoolVar(&listOpts.JSON, "json", false, "output as JSON")
 	listCmd.Flags().BoolVar(&listOpts.Simple, "simple", false, "output paths only (one per line)")
 	listCmd.Flags().BoolVarP(&listOpts.All, "all", "a", false, "include bare and prunable worktrees")
+	listCmd.Flags().StringArrayVarP(&listOpts.Filter, "filter", "f", nil, "filter worktrees (can be specified multiple times)")
+	listCmd.Flags().BoolVar(&listOpts.FilterHelp, "filter-help", false, "show filter syntax help")
 
 	// Mark mutually exclusive output format flags
 	listCmd.MarkFlagsMutuallyExclusive("json", "simple")
@@ -68,6 +77,12 @@ type WorktreeStatusInfo struct {
 }
 
 func runList(cmd *cobra.Command, args []string) error {
+	// Show filter help if requested
+	if listOpts.FilterHelp {
+		output.Println(filter.FormatHelp())
+		return nil
+	}
+
 	// Get current working directory to find the repository
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -95,8 +110,33 @@ func runList(cmd *cobra.Command, args []string) error {
 		filtered = append(filtered, wt)
 	}
 
+	// Apply user-specified filters
+	if len(listOpts.Filter) > 0 {
+		f, err := filter.ParseMultiple(listOpts.Filter)
+		if err != nil {
+			return fmt.Errorf("invalid filter: %w\nUse --filter-help for syntax help", err)
+		}
+
+		// Create a status getter function with caching
+		statusCache := make(map[string]*git.WorktreeStatus)
+		getStatus := func(path string) *git.WorktreeStatus {
+			if status, ok := statusCache[path]; ok {
+				return status
+			}
+			status, _ := git.GetWorktreeStatus(path)
+			statusCache[path] = status
+			return status
+		}
+
+		filtered = f.FilterWorktrees(filtered, getStatus)
+	}
+
 	if len(filtered) == 0 {
-		output.Info("No worktrees found")
+		if len(listOpts.Filter) > 0 {
+			output.Info("No worktrees match the filter criteria")
+		} else {
+			output.Info("No worktrees found")
+		}
 		return nil
 	}
 

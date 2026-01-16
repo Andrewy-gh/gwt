@@ -2,6 +2,7 @@ package git
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -487,4 +488,349 @@ func validateBranchName(name string) error {
 	}
 
 	return nil
+}
+
+// GetMergedBranches returns local branches that have been merged into the specified base branch
+func GetMergedBranches(repoPath, baseBranch string) ([]Branch, error) {
+	if err := ValidateRepository(repoPath); err != nil {
+		return nil, err
+	}
+
+	if baseBranch == "" {
+		// Try to find default branch
+		baseBranch = GetDefaultBranch(repoPath)
+		if baseBranch == "" {
+			return nil, &BranchError{
+				Operation: "list merged",
+				Err:       fmt.Errorf("base branch not specified and no default branch found"),
+			}
+		}
+	}
+
+	// Get list of merged branches
+	result, err := RunInDir(repoPath, "branch", "--merged", baseBranch, "--format=%(refname:short)|%(objectname:short)")
+	if err != nil {
+		return nil, &BranchError{
+			Operation: "list merged",
+			Branch:    baseBranch,
+			Err:       err,
+		}
+	}
+
+	var branches []Branch
+	for _, line := range result.Lines() {
+		if line == "" {
+			continue
+		}
+
+		parts := strings.Split(line, "|")
+		if len(parts) < 2 {
+			continue
+		}
+
+		name := strings.TrimSpace(parts[0])
+		commit := strings.TrimSpace(parts[1])
+
+		// Skip the base branch itself
+		if name == baseBranch {
+			continue
+		}
+
+		branch := Branch{
+			Name:    name,
+			FullRef: "refs/heads/" + name,
+			Commit:  commit,
+		}
+
+		// Get last commit date for this branch
+		lastCommit, err := GetBranchLastCommitDate(repoPath, name)
+		if err == nil {
+			branch.LastCommit = lastCommit
+		}
+
+		branches = append(branches, branch)
+	}
+
+	return branches, nil
+}
+
+// GetStaleBranches returns local branches with no commits in the specified duration
+func GetStaleBranches(repoPath string, age time.Duration) ([]Branch, error) {
+	if err := ValidateRepository(repoPath); err != nil {
+		return nil, err
+	}
+
+	// Get all local branches
+	allBranches, err := ListLocalBranches(repoPath)
+	if err != nil {
+		return nil, err
+	}
+
+	cutoff := time.Now().Add(-age)
+	var staleBranches []Branch
+
+	for _, branch := range allBranches {
+		// Skip current branch
+		if branch.IsHead {
+			continue
+		}
+
+		// Get last commit date
+		lastCommit, err := GetBranchLastCommitDate(repoPath, branch.Name)
+		if err != nil {
+			continue
+		}
+
+		branch.LastCommit = lastCommit
+
+		// Check if the branch is stale
+		if lastCommit.Before(cutoff) {
+			staleBranches = append(staleBranches, branch)
+		}
+	}
+
+	return staleBranches, nil
+}
+
+// GetBranchLastCommitDate returns the timestamp of the last commit on a branch
+func GetBranchLastCommitDate(repoPath, branch string) (time.Time, error) {
+	if err := ValidateRepository(repoPath); err != nil {
+		return time.Time{}, err
+	}
+
+	// Get the committer timestamp of the last commit on the branch
+	result, err := RunInDir(repoPath, "log", "-1", "--format=%ct", branch)
+	if err != nil {
+		return time.Time{}, &BranchError{
+			Operation: "get last commit date",
+			Branch:    branch,
+			Err:       err,
+		}
+	}
+
+	timestampStr := strings.TrimSpace(result.Stdout)
+	if timestampStr == "" {
+		return time.Time{}, &BranchError{
+			Operation: "get last commit date",
+			Branch:    branch,
+			Err:       fmt.Errorf("no commits found"),
+		}
+	}
+
+	timestamp, err := strconv.ParseInt(timestampStr, 10, 64)
+	if err != nil {
+		return time.Time{}, &BranchError{
+			Operation: "get last commit date",
+			Branch:    branch,
+			Err:       fmt.Errorf("failed to parse timestamp: %w", err),
+		}
+	}
+
+	return time.Unix(timestamp, 0), nil
+}
+
+// DeleteBranches batch deletes the specified branches
+func DeleteBranches(repoPath string, branches []string, force bool) error {
+	if err := ValidateRepository(repoPath); err != nil {
+		return err
+	}
+
+	if len(branches) == 0 {
+		return nil
+	}
+
+	// Get current branch to ensure we don't delete it
+	currentBranch, err := GetCurrentBranch(repoPath)
+	if err != nil {
+		return err
+	}
+
+	// Check for branches with worktrees
+	worktrees, err := ListWorktrees(repoPath)
+	if err != nil {
+		return err
+	}
+
+	worktreeBranches := make(map[string]bool)
+	for _, wt := range worktrees {
+		if wt.Branch != "" {
+			worktreeBranches[wt.Branch] = true
+		}
+	}
+
+	var errors []string
+	deletedCount := 0
+
+	for _, branch := range branches {
+		// Skip current branch
+		if branch == currentBranch {
+			errors = append(errors, fmt.Sprintf("%s: cannot delete current branch", branch))
+			continue
+		}
+
+		// Skip branches with worktrees
+		if worktreeBranches[branch] {
+			errors = append(errors, fmt.Sprintf("%s: branch has an active worktree", branch))
+			continue
+		}
+
+		// Delete the branch
+		deleteFlag := "-d"
+		if force {
+			deleteFlag = "-D"
+		}
+
+		_, err := RunInDir(repoPath, "branch", deleteFlag, branch)
+		if err != nil {
+			errors = append(errors, fmt.Sprintf("%s: %v", branch, err))
+			continue
+		}
+
+		deletedCount++
+	}
+
+	if len(errors) > 0 {
+		return &BranchError{
+			Operation: "delete branches",
+			Err:       fmt.Errorf("failed to delete %d branch(es): %s", len(errors), strings.Join(errors, "; ")),
+		}
+	}
+
+	return nil
+}
+
+// GetDefaultBranch returns the default branch name (main or master)
+func GetDefaultBranch(repoPath string) string {
+	// Check for common default branch names
+	for _, name := range []string{"main", "master"} {
+		exists, _ := LocalBranchExists(repoPath, name)
+		if exists {
+			return name
+		}
+	}
+	return ""
+}
+
+// BranchCleanupInfo contains information about a branch for cleanup purposes
+type BranchCleanupInfo struct {
+	Branch     Branch
+	IsMerged   bool
+	IsStale    bool
+	Age        time.Duration
+	AgeString  string // Human-readable age (e.g., "3 days", "2 weeks")
+	HasWorktree bool
+}
+
+// GetBranchCleanupInfo returns detailed information about branches for cleanup
+func GetBranchCleanupInfo(repoPath, baseBranch string, staleAge time.Duration) ([]BranchCleanupInfo, error) {
+	if err := ValidateRepository(repoPath); err != nil {
+		return nil, err
+	}
+
+	// Get default branch if not specified
+	if baseBranch == "" {
+		baseBranch = GetDefaultBranch(repoPath)
+	}
+
+	// Get all local branches
+	allBranches, err := ListLocalBranches(repoPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get merged branches
+	mergedBranches := make(map[string]bool)
+	if baseBranch != "" {
+		merged, err := GetMergedBranches(repoPath, baseBranch)
+		if err == nil {
+			for _, b := range merged {
+				mergedBranches[b.Name] = true
+			}
+		}
+	}
+
+	// Get worktree branches
+	worktrees, _ := ListWorktrees(repoPath)
+	worktreeBranches := make(map[string]bool)
+	for _, wt := range worktrees {
+		if wt.Branch != "" {
+			worktreeBranches[wt.Branch] = true
+		}
+	}
+
+	now := time.Now()
+	staleCutoff := now.Add(-staleAge)
+
+	var result []BranchCleanupInfo
+
+	for _, branch := range allBranches {
+		// Skip current/HEAD branch
+		if branch.IsHead {
+			continue
+		}
+
+		// Skip the base branch
+		if branch.Name == baseBranch {
+			continue
+		}
+
+		info := BranchCleanupInfo{
+			Branch:      branch,
+			IsMerged:    mergedBranches[branch.Name],
+			HasWorktree: worktreeBranches[branch.Name],
+		}
+
+		// Get last commit date and calculate age
+		lastCommit, err := GetBranchLastCommitDate(repoPath, branch.Name)
+		if err == nil {
+			info.Branch.LastCommit = lastCommit
+			info.Age = now.Sub(lastCommit)
+			info.AgeString = formatDuration(info.Age)
+			info.IsStale = lastCommit.Before(staleCutoff)
+		}
+
+		result = append(result, info)
+	}
+
+	return result, nil
+}
+
+// formatDuration formats a duration into a human-readable string
+func formatDuration(d time.Duration) string {
+	days := int(d.Hours() / 24)
+	if days == 0 {
+		hours := int(d.Hours())
+		if hours == 0 {
+			return "less than an hour"
+		}
+		if hours == 1 {
+			return "1 hour"
+		}
+		return fmt.Sprintf("%d hours", hours)
+	}
+	if days == 1 {
+		return "1 day"
+	}
+	if days < 7 {
+		return fmt.Sprintf("%d days", days)
+	}
+	weeks := days / 7
+	if weeks == 1 {
+		return "1 week"
+	}
+	if weeks < 4 {
+		return fmt.Sprintf("%d weeks", weeks)
+	}
+	months := days / 30
+	if months == 1 {
+		return "1 month"
+	}
+	if months < 12 {
+		return fmt.Sprintf("%d months", months)
+	}
+	years := days / 365
+	if years == 1 {
+		return "1 year"
+	}
+	return fmt.Sprintf("%d years", years)
 }

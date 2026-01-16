@@ -2,6 +2,7 @@ package git
 
 import (
 	"testing"
+	"time"
 
 	"github.com/Andrewy-gh/gwt/internal/testutil"
 )
@@ -251,5 +252,260 @@ func TestGetBranch(t *testing.T) {
 
 	if branch.Commit == "" {
 		t.Errorf("branch should have a commit")
+	}
+}
+
+func TestGetMergedBranches(t *testing.T) {
+	repoPath := testutil.CreateTestRepo(t)
+
+	// Get the default branch
+	defaultBranch := GetDefaultBranch(repoPath)
+	if defaultBranch == "" {
+		t.Skip("no default branch found")
+	}
+
+	// Create a branch
+	_, err := CreateBranch(repoPath, CreateBranchOptions{
+		Name: "merged-branch",
+	})
+	if err != nil {
+		t.Fatalf("CreateBranch failed: %v", err)
+	}
+
+	// The branch is created from the same point as the default branch,
+	// so it should appear as merged
+	merged, err := GetMergedBranches(repoPath, defaultBranch)
+	if err != nil {
+		t.Fatalf("GetMergedBranches failed: %v", err)
+	}
+
+	found := false
+	for _, b := range merged {
+		if b.Name == "merged-branch" {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Errorf("merged-branch should be in merged branches list")
+	}
+}
+
+func TestGetBranchLastCommitDate(t *testing.T) {
+	repoPath := testutil.CreateTestRepo(t)
+
+	// Get the default branch
+	defaultBranch := GetDefaultBranch(repoPath)
+	if defaultBranch == "" {
+		t.Skip("no default branch found")
+	}
+
+	// Get last commit date
+	lastCommit, err := GetBranchLastCommitDate(repoPath, defaultBranch)
+	if err != nil {
+		t.Fatalf("GetBranchLastCommitDate failed: %v", err)
+	}
+
+	// Commit should be recent (within the last minute)
+	if time.Since(lastCommit) > time.Minute {
+		t.Errorf("last commit should be recent, got: %v", lastCommit)
+	}
+}
+
+func TestGetStaleBranches(t *testing.T) {
+	repoPath := testutil.CreateTestRepo(t)
+
+	// Create a branch (it will have a recent commit)
+	_, err := CreateBranch(repoPath, CreateBranchOptions{
+		Name: "new-branch",
+	})
+	if err != nil {
+		t.Fatalf("CreateBranch failed: %v", err)
+	}
+
+	// Get stale branches with a very short duration
+	// All branches should be "stale" with 0 duration
+	stale, err := GetStaleBranches(repoPath, 0)
+	if err != nil {
+		t.Fatalf("GetStaleBranches failed: %v", err)
+	}
+
+	// new-branch should be in the list (it's not current)
+	found := false
+	for _, b := range stale {
+		if b.Name == "new-branch" {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Errorf("new-branch should be in stale branches list with 0 duration")
+	}
+
+	// Get stale branches with a long duration
+	// No branches should be stale
+	stale, err = GetStaleBranches(repoPath, 365*24*time.Hour)
+	if err != nil {
+		t.Fatalf("GetStaleBranches failed: %v", err)
+	}
+
+	if len(stale) > 0 {
+		t.Errorf("no branches should be stale with 365 day duration")
+	}
+}
+
+func TestDeleteBranches(t *testing.T) {
+	repoPath := testutil.CreateTestRepo(t)
+
+	// Create multiple branches
+	for _, name := range []string{"branch-1", "branch-2", "branch-3"} {
+		_, err := CreateBranch(repoPath, CreateBranchOptions{
+			Name: name,
+		})
+		if err != nil {
+			t.Fatalf("CreateBranch failed: %v", err)
+		}
+	}
+
+	// Delete multiple branches
+	err := DeleteBranches(repoPath, []string{"branch-1", "branch-2"}, false)
+	if err != nil {
+		t.Fatalf("DeleteBranches failed: %v", err)
+	}
+
+	// Verify they're gone
+	for _, name := range []string{"branch-1", "branch-2"} {
+		exists, err := LocalBranchExists(repoPath, name)
+		if err != nil {
+			t.Fatalf("LocalBranchExists failed: %v", err)
+		}
+		if exists {
+			t.Errorf("%s should not exist after deletion", name)
+		}
+	}
+
+	// branch-3 should still exist
+	exists, err := LocalBranchExists(repoPath, "branch-3")
+	if err != nil {
+		t.Fatalf("LocalBranchExists failed: %v", err)
+	}
+	if !exists {
+		t.Errorf("branch-3 should still exist")
+	}
+}
+
+func TestDeleteBranches_CannotDeleteCurrentBranch(t *testing.T) {
+	repoPath := testutil.CreateTestRepo(t)
+
+	// Get current branch
+	currentBranch, err := GetCurrentBranch(repoPath)
+	if err != nil {
+		t.Fatalf("GetCurrentBranch failed: %v", err)
+	}
+
+	// Create a branch to also delete
+	_, err = CreateBranch(repoPath, CreateBranchOptions{
+		Name: "deletable",
+	})
+	if err != nil {
+		t.Fatalf("CreateBranch failed: %v", err)
+	}
+
+	// Try to delete current branch along with another
+	err = DeleteBranches(repoPath, []string{currentBranch, "deletable"}, false)
+
+	// Should return an error because current branch can't be deleted
+	if err == nil {
+		t.Errorf("expected error when deleting current branch")
+	}
+
+	// But deletable should still be deleted
+	exists, err := LocalBranchExists(repoPath, "deletable")
+	if err != nil {
+		t.Fatalf("LocalBranchExists failed: %v", err)
+	}
+	if exists {
+		t.Errorf("deletable should have been deleted")
+	}
+}
+
+func TestGetDefaultBranch(t *testing.T) {
+	repoPath := testutil.CreateTestRepo(t)
+
+	defaultBranch := GetDefaultBranch(repoPath)
+
+	// Should be either main or master
+	if defaultBranch != "main" && defaultBranch != "master" {
+		t.Errorf("expected main or master, got: %s", defaultBranch)
+	}
+}
+
+func TestGetBranchCleanupInfo(t *testing.T) {
+	repoPath := testutil.CreateTestRepo(t)
+
+	// Create some branches
+	for _, name := range []string{"feature-1", "feature-2"} {
+		_, err := CreateBranch(repoPath, CreateBranchOptions{
+			Name: name,
+		})
+		if err != nil {
+			t.Fatalf("CreateBranch failed: %v", err)
+		}
+	}
+
+	// Get cleanup info
+	info, err := GetBranchCleanupInfo(repoPath, "", 30*24*time.Hour)
+	if err != nil {
+		t.Fatalf("GetBranchCleanupInfo failed: %v", err)
+	}
+
+	// Should have at least 2 branches (excluding current and base)
+	if len(info) < 2 {
+		t.Errorf("expected at least 2 branches in cleanup info, got: %d", len(info))
+	}
+
+	// All should have IsMerged=true (they're at same commit as base)
+	for _, b := range info {
+		if !b.IsMerged {
+			t.Errorf("branch %s should be marked as merged", b.Branch.Name)
+		}
+	}
+
+	// All should have age information
+	for _, b := range info {
+		if b.AgeString == "" {
+			t.Errorf("branch %s should have age string", b.Branch.Name)
+		}
+	}
+}
+
+func TestFormatDuration(t *testing.T) {
+	tests := []struct {
+		name     string
+		duration time.Duration
+		want     string
+	}{
+		{"less than hour", 30 * time.Minute, "less than an hour"},
+		{"1 hour", time.Hour, "1 hour"},
+		{"5 hours", 5 * time.Hour, "5 hours"},
+		{"1 day", 24 * time.Hour, "1 day"},
+		{"3 days", 3 * 24 * time.Hour, "3 days"},
+		{"1 week", 7 * 24 * time.Hour, "1 week"},
+		{"2 weeks", 14 * 24 * time.Hour, "2 weeks"},
+		{"1 month", 30 * 24 * time.Hour, "1 month"},
+		{"3 months", 90 * 24 * time.Hour, "3 months"},
+		{"1 year", 365 * 24 * time.Hour, "1 year"},
+		{"2 years", 730 * 24 * time.Hour, "2 years"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := formatDuration(tt.duration)
+			if got != tt.want {
+				t.Errorf("formatDuration(%v) = %q, want %q", tt.duration, got, tt.want)
+			}
+		})
 	}
 }

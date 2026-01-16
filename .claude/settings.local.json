@@ -15,7 +15,9 @@
       "Bash(find:*)",
       "Bash(go run:*)",
       "Bash(wc:*)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(grep:*)",
+      "Bash(ls:*)"
     ]
   }
 }

@@ -19,6 +19,8 @@ const (
 	ViewWorktreeList
 	ViewDeleteConfirm
 	ViewProgress
+	ViewCleanupBranches
+	ViewConfigEditor
 )
 
 // Model is the root model that manages view switching
@@ -31,18 +33,20 @@ type Model struct {
 	repoPath string
 
 	// Sub-models for each view
-	menu           *views.MenuModel
-	createBranch   *views.CreateBranchModel
-	createSource   *views.CreateSourceModel
-	remoteBranch   *views.RemoteBranchModel
-	fileSelect     *views.FileSelectModel
-	dockerMode     *views.DockerModeModel
-	worktreeList   *views.WorktreeListModel
-	deleteConfirm  *views.DeleteConfirmModel
-	fetchingView   *views.FetchingModel
-	copyingView    *views.CopyingModel
-	creatingView   *views.CreatingModel
-	deletingView   *views.DeletingModel
+	menu            *views.MenuModel
+	createBranch    *views.CreateBranchModel
+	createSource    *views.CreateSourceModel
+	remoteBranch    *views.RemoteBranchModel
+	fileSelect      *views.FileSelectModel
+	dockerMode      *views.DockerModeModel
+	worktreeList    *views.WorktreeListModel
+	deleteConfirm   *views.DeleteConfirmModel
+	fetchingView    *views.FetchingModel
+	copyingView     *views.CopyingModel
+	creatingView    *views.CreatingModel
+	deletingView    *views.DeletingModel
+	cleanupBranches *views.CleanupBranchesModel
+	configEditor    *views.ConfigEditorModel
 
 	// Shared state for multi-step create flow
 	createFlowState *CreateFlowState
@@ -99,6 +103,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateDeleteConfirm(msg)
 	case ViewProgress:
 		return m.updateProgress(msg)
+	case ViewCleanupBranches:
+		return m.updateCleanupBranches(msg)
+	case ViewConfigEditor:
+		return m.updateConfigEditor(msg)
 	default:
 		return m, nil
 	}
@@ -152,6 +160,14 @@ func (m Model) View() string {
 		} else if m.deletingView != nil {
 			return m.deletingView.View(m.width, m.height)
 		}
+	case ViewCleanupBranches:
+		if m.cleanupBranches != nil {
+			return m.cleanupBranches.View(m.width, m.height)
+		}
+	case ViewConfigEditor:
+		if m.configEditor != nil {
+			return m.configEditor.View(m.width, m.height)
+		}
 	}
 
 	return "Unknown view"
@@ -185,6 +201,18 @@ func (m Model) updateMenu(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.view = ViewWorktreeList
 			m.worktreeList = views.NewWorktreeListModel(m.repoPath)
 			return m, m.worktreeList.Init()
+
+		case "cleanup":
+			// Go to cleanup branches view
+			m.view = ViewCleanupBranches
+			m.cleanupBranches = views.NewCleanupBranchesModel(m.repoPath)
+			return m, m.cleanupBranches.Init()
+
+		case "config":
+			// Go to config editor view
+			m.view = ViewConfigEditor
+			m.configEditor = views.NewConfigEditorModel(m.repoPath)
+			return m, m.configEditor.Init()
 		}
 	}
 
@@ -504,6 +532,44 @@ func (m Model) updateProgress(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.creatingView, cmd = m.creatingView.Update(msg)
 	} else if m.deletingView != nil {
 		m.deletingView, cmd = m.deletingView.Update(msg)
+	}
+
+	return m, cmd
+}
+
+// updateCleanupBranches handles updates for the cleanup branches view
+func (m Model) updateCleanupBranches(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Check for Esc key to return to menu
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		if key.Matches(keyMsg, key.NewBinding(key.WithKeys("esc", "q"))) {
+			m.view = ViewMenu
+			return m, nil
+		}
+	}
+
+	// Update the view
+	var cmd tea.Cmd
+	m.cleanupBranches, cmd = m.cleanupBranches.Update(msg)
+
+	// Check if user cancelled
+	if m.cleanupBranches.IsCancelled() {
+		m.view = ViewMenu
+		return m, nil
+	}
+
+	return m, cmd
+}
+
+// updateConfigEditor handles updates for the config editor view
+func (m Model) updateConfigEditor(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Update the view
+	var cmd tea.Cmd
+	m.configEditor, cmd = m.configEditor.Update(msg)
+
+	// Check if user cancelled
+	if m.configEditor.IsCancelled() {
+		m.view = ViewMenu
+		return m, nil
 	}
 
 	return m, cmd

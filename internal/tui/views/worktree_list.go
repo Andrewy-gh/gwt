@@ -6,9 +6,12 @@ import (
 	"strings"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/textinput"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/Andrewy-gh/gwt/internal/filter"
 	"github.com/Andrewy-gh/gwt/internal/git"
 	"github.com/Andrewy-gh/gwt/internal/tui/components"
 	"github.com/Andrewy-gh/gwt/internal/tui/styles"
@@ -33,6 +36,7 @@ type worktreeStatusLoadedMsg struct {
 type WorktreeListModel struct {
 	repoPath        string
 	worktrees       []git.Worktree
+	filteredIndices []int // Indices into worktrees that match current filter
 	statuses        map[string]*git.WorktreeStatus
 	selected        map[int]bool
 	cursor          int
@@ -45,16 +49,27 @@ type WorktreeListModel struct {
 	spinner         *components.Spinner
 	deleteRequested bool // Flag indicating delete was requested
 	cancelRequested bool // Flag indicating cancel was requested
+
+	// Filter/search state
+	filterInput  textinput.Model
+	filterActive bool
+	filterExpr   string // Current filter expression
 }
 
 // NewWorktreeListModel creates a new worktree list view
 func NewWorktreeListModel(repoPath string) *WorktreeListModel {
+	ti := textinput.New()
+	ti.Placeholder = "filter (e.g. branch:feature, status:dirty)"
+	ti.CharLimit = 100
+	ti.Width = 50
+
 	return &WorktreeListModel{
-		repoPath: repoPath,
-		selected: make(map[int]bool),
-		statuses: make(map[string]*git.WorktreeStatus),
-		spinner:  components.NewSpinner("Loading worktrees..."),
-		loading:  true,
+		repoPath:    repoPath,
+		selected:    make(map[int]bool),
+		statuses:    make(map[string]*git.WorktreeStatus),
+		spinner:     components.NewSpinner("Loading worktrees..."),
+		loading:     true,
+		filterInput: ti,
 	}
 }
 
@@ -81,7 +96,45 @@ func (m *WorktreeListModel) Update(msg tea.Msg) (*WorktreeListModel, tea.Cmd) {
 			return m, nil
 		}
 
+		// Handle filter mode input
+		if m.filterActive {
+			switch msg.String() {
+			case "esc":
+				// Exit filter mode but keep filter applied
+				m.filterActive = false
+				m.filterInput.Blur()
+			case "enter":
+				// Apply filter and exit filter mode
+				m.filterActive = false
+				m.filterInput.Blur()
+				m.filterExpr = m.filterInput.Value()
+				m.applyFilter()
+			case "ctrl+c":
+				// Clear filter completely
+				m.filterActive = false
+				m.filterInput.Blur()
+				m.filterInput.SetValue("")
+				m.filterExpr = ""
+				m.clearFilter()
+			default:
+				// Update text input
+				var cmd tea.Cmd
+				m.filterInput, cmd = m.filterInput.Update(msg)
+				cmds = append(cmds, cmd)
+				// Live filter as user types
+				m.filterExpr = m.filterInput.Value()
+				m.applyFilter()
+			}
+			return m, tea.Batch(cmds...)
+		}
+
+		// Normal mode key handling
 		switch {
+		case key.Matches(msg, key.NewBinding(key.WithKeys("/"))):
+			// Activate filter mode
+			m.filterActive = true
+			m.filterInput.Focus()
+			return m, textinput.Blink
 		case key.Matches(msg, key.NewBinding(key.WithKeys("up", "k"))):
 			m.cursorUp()
 		case key.Matches(msg, key.NewBinding(key.WithKeys("down", "j"))):
@@ -100,8 +153,20 @@ func (m *WorktreeListModel) Update(msg tea.Msg) (*WorktreeListModel, tea.Cmd) {
 		case key.Matches(msg, key.NewBinding(key.WithKeys("r", "R"))):
 			m.refreshing = true
 			cmds = append(cmds, m.loadWorktrees())
+		case key.Matches(msg, key.NewBinding(key.WithKeys("c", "C"))):
+			// Clear filter
+			m.filterInput.SetValue("")
+			m.filterExpr = ""
+			m.clearFilter()
 		case key.Matches(msg, key.NewBinding(key.WithKeys("esc"))):
-			m.cancelRequested = true
+			if m.filterExpr != "" {
+				// First esc clears filter
+				m.filterInput.SetValue("")
+				m.filterExpr = ""
+				m.clearFilter()
+			} else {
+				m.cancelRequested = true
+			}
 		}
 
 	case worktreeListLoadedMsg:
@@ -111,6 +176,7 @@ func (m *WorktreeListModel) Update(msg tea.Msg) (*WorktreeListModel, tea.Cmd) {
 			m.err = msg.err
 		} else {
 			m.worktrees = msg.worktrees
+			m.applyFilter() // Re-apply filter after reload
 			// Load status for each worktree
 			cmds = append(cmds, m.loadStatuses())
 		}
@@ -118,6 +184,10 @@ func (m *WorktreeListModel) Update(msg tea.Msg) (*WorktreeListModel, tea.Cmd) {
 	case worktreeStatusLoadedMsg:
 		if msg.err == nil && msg.status != nil {
 			m.statuses[msg.path] = msg.status
+			// Re-apply filter when status updates (for status-based filters)
+			if m.filterExpr != "" {
+				m.applyFilter()
+			}
 		}
 
 	case components.SpinnerTickMsg:
@@ -196,11 +266,35 @@ func (m *WorktreeListModel) renderList() string {
 	b.WriteString(styles.Title.Render("Worktrees"))
 	b.WriteString("\n\n")
 
+	// Filter input (if active)
+	if m.filterActive {
+		b.WriteString("Filter: ")
+		b.WriteString(m.filterInput.View())
+		b.WriteString("\n\n")
+	} else if m.filterExpr != "" {
+		// Show current filter when not editing
+		visible := m.getVisibleWorktrees()
+		filterInfo := fmt.Sprintf("Filter: %s (%d/%d matches)", m.filterExpr, len(visible), len(m.worktrees))
+		b.WriteString(styles.Selected.Render(filterInfo))
+		b.WriteString("  ")
+		b.WriteString(styles.MutedText.Render("(C: clear, /: edit)"))
+		b.WriteString("\n\n")
+	}
+
 	// Empty state
+	visible := m.getVisibleWorktrees()
 	if len(m.worktrees) == 0 {
 		b.WriteString(styles.MutedText.Render("No worktrees found"))
 		b.WriteString("\n\n")
 		b.WriteString(styles.Help.Render("Press esc to return to menu"))
+		b.WriteString("\n")
+		return b.String()
+	}
+
+	if len(visible) == 0 && m.filterExpr != "" {
+		b.WriteString(styles.MutedText.Render("No worktrees match the filter"))
+		b.WriteString("\n\n")
+		b.WriteString(styles.Help.Render("Press C to clear filter, esc to return to menu"))
 		b.WriteString("\n")
 		return b.String()
 	}
@@ -237,6 +331,9 @@ func (m *WorktreeListModel) renderTable() string {
 	b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, headerCells...))
 	b.WriteString("\n")
 
+	// Get visible worktrees (filtered or all)
+	visible := m.getVisibleWorktrees()
+
 	// Calculate visible range
 	maxRows := m.height - 15 // Reserve space for title, header, and help
 	if maxRows < 5 {
@@ -245,13 +342,14 @@ func (m *WorktreeListModel) renderTable() string {
 
 	visibleStart := m.offset
 	visibleEnd := m.offset + maxRows
-	if visibleEnd > len(m.worktrees) {
-		visibleEnd = len(m.worktrees)
+	if visibleEnd > len(visible) {
+		visibleEnd = len(visible)
 	}
 
 	// Rows
 	for i := visibleStart; i < visibleEnd; i++ {
-		wt := m.worktrees[i]
+		wt := visible[i]
+		actualIdx := m.getActualIndex(i)
 
 		// Determine row style
 		var rowStyle lipgloss.Style
@@ -263,7 +361,7 @@ func (m *WorktreeListModel) renderTable() string {
 
 		// Checkbox
 		checkbox := "[ ]"
-		if m.selected[i] {
+		if m.selected[actualIdx] {
 			checkbox = "[✓]"
 		}
 		if i == m.cursor {
@@ -331,7 +429,7 @@ func (m *WorktreeListModel) renderTable() string {
 		b.WriteString(styles.MutedText.Render("  ▲ More rows above"))
 		b.WriteString("\n")
 	}
-	if visibleEnd < len(m.worktrees) {
+	if visibleEnd < len(visible) {
 		b.WriteString(styles.MutedText.Render("  ▼ More rows below"))
 		b.WriteString("\n")
 	}
@@ -351,10 +449,17 @@ func (m *WorktreeListModel) renderHelp() string {
 	}
 
 	// Key bindings
-	b.WriteString(styles.Help.Render("↑/k, ↓/j: navigate  space: toggle  a: select all  n: deselect"))
-	b.WriteString("\n")
-	b.WriteString(styles.Help.Render("D: delete selected  R: refresh  esc: back to menu"))
-	b.WriteString("\n")
+	if m.filterActive {
+		b.WriteString(styles.Help.Render("Type to filter • Enter: apply • Esc: close • Ctrl+C: clear"))
+		b.WriteString("\n")
+		b.WriteString(styles.MutedText.Render("Filter syntax: field:value (e.g. branch:feature, status:dirty, age:>7d)"))
+		b.WriteString("\n")
+	} else {
+		b.WriteString(styles.Help.Render("↑/k, ↓/j: navigate  space: toggle  a: select all  n: deselect"))
+		b.WriteString("\n")
+		b.WriteString(styles.Help.Render("D: delete selected  R: refresh  /: filter  C: clear filter  esc: back"))
+		b.WriteString("\n")
+	}
 
 	return b.String()
 }
@@ -453,7 +558,8 @@ func (m *WorktreeListModel) cursorUp() {
 }
 
 func (m *WorktreeListModel) cursorDown() {
-	if m.cursor < len(m.worktrees)-1 {
+	visible := m.getVisibleWorktrees()
+	if m.cursor < len(visible)-1 {
 		m.cursor++
 		// Adjust scroll
 		maxRows := m.height - 15
@@ -467,23 +573,33 @@ func (m *WorktreeListModel) cursorDown() {
 }
 
 func (m *WorktreeListModel) toggleSelection() {
-	if m.cursor < len(m.worktrees) {
-		// Don't allow selecting the main worktree
-		if m.worktrees[m.cursor].IsMain {
+	visible := m.getVisibleWorktrees()
+	if m.cursor < len(visible) {
+		actualIdx := m.getActualIndex(m.cursor)
+		if actualIdx < 0 {
 			return
 		}
-		m.selected[m.cursor] = !m.selected[m.cursor]
-		if !m.selected[m.cursor] {
-			delete(m.selected, m.cursor)
+		// Don't allow selecting the main worktree
+		if m.worktrees[actualIdx].IsMain {
+			return
+		}
+		m.selected[actualIdx] = !m.selected[actualIdx]
+		if !m.selected[actualIdx] {
+			delete(m.selected, actualIdx)
 		}
 	}
 }
 
 func (m *WorktreeListModel) selectAll() {
-	for i := range m.worktrees {
+	visible := m.getVisibleWorktrees()
+	for i := range visible {
+		actualIdx := m.getActualIndex(i)
+		if actualIdx < 0 {
+			continue
+		}
 		// Don't select the main worktree
-		if !m.worktrees[i].IsMain {
-			m.selected[i] = true
+		if !m.worktrees[actualIdx].IsMain {
+			m.selected[actualIdx] = true
 		}
 	}
 }
@@ -494,6 +610,75 @@ func (m *WorktreeListModel) deselectAll() {
 
 func (m *WorktreeListModel) hasSelection() bool {
 	return len(m.selected) > 0
+}
+
+// Filter methods
+
+// applyFilter applies the current filter expression to the worktree list
+func (m *WorktreeListModel) applyFilter() {
+	if m.filterExpr == "" {
+		m.clearFilter()
+		return
+	}
+
+	// Parse the filter expression
+	f, err := filter.Parse(m.filterExpr)
+	if err != nil {
+		// Invalid filter - show all worktrees
+		m.clearFilter()
+		return
+	}
+
+	// Build the filter
+	filterObj := filter.New()
+	filterObj.Add(*f)
+
+	// Apply filter to worktrees
+	m.filteredIndices = nil
+	for i, wt := range m.worktrees {
+		ctx := &filter.WorktreeFilterContext{
+			Worktree: &wt,
+			Status:   m.statuses[wt.Path],
+		}
+		if filterObj.Match(ctx) {
+			m.filteredIndices = append(m.filteredIndices, i)
+		}
+	}
+
+	// Reset cursor position
+	m.cursor = 0
+	m.offset = 0
+}
+
+// clearFilter clears the current filter
+func (m *WorktreeListModel) clearFilter() {
+	m.filteredIndices = nil
+	m.cursor = 0
+	m.offset = 0
+}
+
+// getVisibleWorktrees returns the worktrees to display (filtered or all)
+func (m *WorktreeListModel) getVisibleWorktrees() []git.Worktree {
+	if m.filteredIndices == nil {
+		return m.worktrees
+	}
+
+	visible := make([]git.Worktree, len(m.filteredIndices))
+	for i, idx := range m.filteredIndices {
+		visible[i] = m.worktrees[idx]
+	}
+	return visible
+}
+
+// getActualIndex converts a visible index to the actual worktree index
+func (m *WorktreeListModel) getActualIndex(visibleIdx int) int {
+	if m.filteredIndices == nil {
+		return visibleIdx
+	}
+	if visibleIdx >= 0 && visibleIdx < len(m.filteredIndices) {
+		return m.filteredIndices[visibleIdx]
+	}
+	return -1
 }
 
 func (m *WorktreeListModel) getSelectedPaths() []string {

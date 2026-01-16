@@ -77,11 +77,58 @@ Indicates whether the configuration is:
 	RunE: runConfigPath,
 }
 
+// configEditCmd opens an interactive config editor
+var configEditCmd = &cobra.Command{
+	Use:   "edit",
+	Short: "Edit configuration interactively",
+	Long: `Open an interactive TUI editor for configuration.
+
+The editor allows you to:
+  • View all configuration options
+  • Edit string, boolean, and integer values
+  • Add, remove, and modify array values
+  • Save changes to the config file
+
+Changes are validated before saving.`,
+	RunE: runConfigEdit,
+}
+
+// configSetCmd sets a specific config value
+var configSetCmd = &cobra.Command{
+	Use:   "set KEY VALUE",
+	Short: "Set a config value",
+	Long: `Set a specific configuration value.
+
+Examples:
+  gwt config set docker.port_offset 100
+  gwt config set docker.default_mode shared
+  gwt config set dependencies.auto_install true`,
+	Args: cobra.ExactArgs(2),
+	RunE: runConfigSet,
+}
+
+// configGetCmd gets a specific config value
+var configGetCmd = &cobra.Command{
+	Use:   "get KEY",
+	Short: "Get a config value",
+	Long: `Get a specific configuration value.
+
+Examples:
+  gwt config get docker.port_offset
+  gwt config get docker.default_mode
+  gwt config get copy_defaults`,
+	Args: cobra.ExactArgs(1),
+	RunE: runConfigGet,
+}
+
 func init() {
 	rootCmd.AddCommand(configCmd)
 	configCmd.AddCommand(configShowCmd)
 	configCmd.AddCommand(configInitCmd)
 	configCmd.AddCommand(configPathCmd)
+	configCmd.AddCommand(configEditCmd)
+	configCmd.AddCommand(configSetCmd)
+	configCmd.AddCommand(configGetCmd)
 
 	// Flags for config init
 	configInitCmd.Flags().BoolVarP(&configInitForce, "force", "f", false, "overwrite existing config file")
@@ -211,4 +258,140 @@ func loadConfig() (*config.Config, string, error) {
 
 	// Use inheritance-aware loading
 	return config.LoadWithInheritance(".")
+}
+
+func runConfigEdit(cmd *cobra.Command, args []string) error {
+	output.Info("Interactive config editing")
+	output.Println("")
+	output.Println("To edit configuration interactively, use:")
+	output.Println("  gwt tui    # Navigate to 'Configuration' in the menu")
+	output.Println("")
+	output.Println("To set specific values from the command line:")
+	output.Println("  gwt config set KEY VALUE")
+	output.Println("")
+	output.Println("Examples:")
+	output.Println("  gwt config set docker.port_offset 100")
+	output.Println("  gwt config set docker.default_mode shared")
+	output.Println("  gwt config set dependencies.auto_install true")
+	output.Println("")
+	output.Println("Use 'gwt config show' to view current configuration.")
+	return nil
+}
+
+func runConfigSet(cmd *cobra.Command, args []string) error {
+	key := args[0]
+	value := args[1]
+
+	// Load current config
+	cfg, _, err := loadConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	// Set the value based on the key
+	switch key {
+	case "docker.default_mode":
+		if value != "shared" && value != "new" {
+			return fmt.Errorf("docker.default_mode must be 'shared' or 'new'")
+		}
+		cfg.Docker.DefaultMode = value
+	case "docker.port_offset":
+		var intVal int
+		if _, err := fmt.Sscanf(value, "%d", &intVal); err != nil {
+			return fmt.Errorf("docker.port_offset must be an integer: %w", err)
+		}
+		if intVal < 0 || intVal >= 65535 {
+			return fmt.Errorf("docker.port_offset must be between 0 and 65534")
+		}
+		cfg.Docker.PortOffset = intVal
+	case "dependencies.auto_install":
+		cfg.Dependencies.AutoInstall = (value == "true" || value == "yes" || value == "1")
+	case "migrations.auto_detect":
+		cfg.Migrations.AutoDetect = (value == "true" || value == "yes" || value == "1")
+	case "migrations.command":
+		cfg.Migrations.Command = value
+	default:
+		return fmt.Errorf("unknown config key: %s\n\nSupported keys:\n  docker.default_mode, docker.port_offset\n  dependencies.auto_install\n  migrations.auto_detect, migrations.command", key)
+	}
+
+	// Validate the config
+	if validationErrors := cfg.Validate(); len(validationErrors) > 0 {
+		return fmt.Errorf("validation failed: %s", validationErrors[0].Error())
+	}
+
+	// Save the config
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get current directory: %w", err)
+	}
+
+	if err := config.Save(cwd, cfg); err != nil {
+		return fmt.Errorf("failed to save config: %w", err)
+	}
+
+	output.Success(fmt.Sprintf("Set %s = %s", key, value))
+	return nil
+}
+
+func runConfigGet(cmd *cobra.Command, args []string) error {
+	key := args[0]
+
+	// Load current config
+	cfg, _, err := loadConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	// Get the value based on the key
+	var value interface{}
+	switch key {
+	case "docker.default_mode":
+		value = cfg.Docker.DefaultMode
+	case "docker.port_offset":
+		value = cfg.Docker.PortOffset
+	case "docker.compose_files":
+		value = cfg.Docker.ComposeFiles
+	case "docker.data_directories":
+		value = cfg.Docker.DataDirectories
+	case "dependencies.auto_install":
+		value = cfg.Dependencies.AutoInstall
+	case "dependencies.paths":
+		value = cfg.Dependencies.Paths
+	case "migrations.auto_detect":
+		value = cfg.Migrations.AutoDetect
+	case "migrations.command":
+		value = cfg.Migrations.Command
+	case "copy_defaults":
+		value = cfg.CopyDefaults
+	case "copy_exclude":
+		value = cfg.CopyExclude
+	case "hooks.post_create":
+		value = cfg.Hooks.PostCreate
+	case "hooks.post_delete":
+		value = cfg.Hooks.PostDelete
+	default:
+		return fmt.Errorf("unknown config key: %s\n\nSupported keys:\n  docker.default_mode, docker.port_offset, docker.compose_files, docker.data_directories\n  dependencies.auto_install, dependencies.paths\n  migrations.auto_detect, migrations.command\n  copy_defaults, copy_exclude\n  hooks.post_create, hooks.post_delete", key)
+	}
+
+	// Print the value
+	switch v := value.(type) {
+	case []string:
+		if len(v) == 0 {
+			output.Println("(empty)")
+		} else {
+			for _, item := range v {
+				output.Println(item)
+			}
+		}
+	case bool:
+		if v {
+			output.Println("true")
+		} else {
+			output.Println("false")
+		}
+	default:
+		output.Println(fmt.Sprintf("%v", value))
+	}
+
+	return nil
 }
