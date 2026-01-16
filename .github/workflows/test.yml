@@ -1,0 +1,196 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  # Linux tests
+  test-linux:
+    name: Test on Linux
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: go test -v -race -coverprofile=coverage-linux.txt -covermode=atomic ./...
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage-linux.txt
+          flags: linux
+
+  # macOS tests
+  test-macos:
+    name: Test on macOS
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: go test -v -race -coverprofile=coverage-macos.txt -covermode=atomic ./...
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage-macos.txt
+          flags: macos
+
+  # Windows tests
+  test-windows:
+    name: Test on Windows
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Run all tests
+        run: go test -v -race -coverprofile=coverage-windows.txt -covermode=atomic ./...
+
+      - name: Run Windows-specific tests
+        run: go test -v ./internal/test/...
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage-windows.txt
+          flags: windows
+
+      - name: Build for Windows
+        run: |
+          go build -o gwt.exe ./cmd/gwt
+
+      - name: Run gwt doctor (diagnostics)
+        run: |
+          ./gwt.exe doctor
+
+      - name: Test basic commands
+        run: |
+          ./gwt.exe --version
+          ./gwt.exe --help
+
+  # Integration tests on Windows
+  integration-windows:
+    name: Integration Tests (Windows)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Build gwt
+        run: go build -o gwt.exe ./cmd/gwt
+
+      - name: Create test repository
+        run: |
+          git config --global user.email "test@example.com"
+          git config --global user.name "Test User"
+          mkdir test-repo
+          cd test-repo
+          git init
+          echo "# Test" > README.md
+          git add .
+          git commit -m "Initial commit"
+
+      - name: Test worktree creation
+        working-directory: ./test-repo
+        run: |
+          ..\gwt.exe create feature-test --path worktrees\feature-test
+
+      - name: Test worktree list
+        working-directory: ./test-repo
+        run: |
+          ..\gwt.exe list
+
+      - name: Test worktree deletion
+        working-directory: ./test-repo
+        run: |
+          ..\gwt.exe delete feature-test --force
+
+  # Linting
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: latest
+          args: --timeout=5m
+
+  # Build check for all platforms
+  build-check:
+    name: Build Check
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [linux, windows, darwin]
+        arch: [amd64, arm64]
+        exclude:
+          - os: windows
+            arch: arm64
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Build for ${{ matrix.os }}/${{ matrix.arch }}
+        env:
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+        run: |
+          go build -o gwt-${{ matrix.os }}-${{ matrix.arch }} ./cmd/gwt
+
+  # Summary job that requires all tests to pass
+  tests-passed:
+    name: All Tests Passed
+    needs: [test-linux, test-macos, test-windows, integration-windows, lint, build-check]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Tests passed
+        run: echo "All tests passed successfully!"

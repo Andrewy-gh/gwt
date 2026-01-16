@@ -76,6 +76,31 @@ func ValidateBranchName(name string) error {
 		return fmt.Errorf("branch name cannot contain consecutive slashes '//'")
 	}
 
+	// Windows-specific: Check for reserved device names
+	// This applies on Windows and should be checked cross-platform for compatibility
+	if filepath.Separator == '\\' { // Windows
+		// Check the branch name and each component in the path
+		components := strings.Split(name, "/")
+		for _, component := range components {
+			// Remove extension if present
+			baseName := component
+			if idx := strings.IndexByte(component, '.'); idx != -1 {
+				baseName = component[:idx]
+			}
+
+			reservedNames := []string{"CON", "PRN", "AUX", "NUL",
+				"COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+				"LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"}
+
+			upperBase := strings.ToUpper(baseName)
+			for _, reserved := range reservedNames {
+				if upperBase == reserved {
+					return fmt.Errorf("branch name '%s' contains reserved Windows device name '%s'", name, component)
+				}
+			}
+		}
+	}
+
 	return nil
 }
 

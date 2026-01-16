@@ -174,3 +174,207 @@ func TestExecuteCommandDefaultTimeout(t *testing.T) {
 		t.Errorf("Expected exit code 0, got %d", result.ExitCode)
 	}
 }
+
+// Windows-specific tests
+func TestExecuteCommandWindowsPowerShell(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows-only test")
+	}
+
+	cmd := `powershell -Command "Write-Output 'PowerShell output'"`
+
+	result, err := ExecuteCommand(ExecOptions{
+		Command: cmd,
+	})
+
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if result.ExitCode != 0 {
+		t.Errorf("Expected exit code 0, got %d", result.ExitCode)
+	}
+
+	if !strings.Contains(result.Stdout, "PowerShell output") {
+		t.Errorf("Expected PowerShell output, got: %s", result.Stdout)
+	}
+}
+
+func TestExecuteCommandWindowsBatchFile(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows-only test")
+	}
+
+	// Create a temporary batch file
+	tmpDir := t.TempDir()
+	batchFile := filepath.Join(tmpDir, "test.bat")
+	outputFile := filepath.Join(tmpDir, "output.txt")
+
+	batchContent := `@echo off
+echo Batch file executed
+echo Batch output > "` + outputFile + `"
+exit /b 0`
+
+	if err := os.WriteFile(batchFile, []byte(batchContent), 0755); err != nil {
+		t.Fatalf("Failed to create batch file: %v", err)
+	}
+
+	result, err := ExecuteCommand(ExecOptions{
+		Command: batchFile,
+		Dir:     tmpDir,
+	})
+
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if result.ExitCode != 0 {
+		t.Errorf("Expected exit code 0, got %d", result.ExitCode)
+	}
+
+	// Verify batch file created output file
+	if _, err := os.Stat(outputFile); os.IsNotExist(err) {
+		t.Errorf("Batch file did not create expected output file")
+	}
+}
+
+func TestExecuteCommandWindowsPathsWithSpaces(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows-only test")
+	}
+
+	// Test that we can set a working directory with spaces
+	tmpDir := t.TempDir()
+	dirWithSpaces := filepath.Join(tmpDir, "test dir with spaces")
+
+	// Create directory
+	if err := os.Mkdir(dirWithSpaces, 0755); err != nil {
+		t.Fatalf("Failed to create directory: %v", err)
+	}
+
+	// Execute a simple command in that directory
+	cmd := `echo Working in directory with spaces`
+
+	result, err := ExecuteCommand(ExecOptions{
+		Command: cmd,
+		Dir:     dirWithSpaces,
+	})
+
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if result.ExitCode != 0 {
+		t.Errorf("Expected exit code 0, got %d", result.ExitCode)
+	}
+
+	if !strings.Contains(result.Stdout, "Working in directory with spaces") {
+		t.Errorf("Command did not execute in directory with spaces")
+	}
+}
+
+func TestExecuteCommandWindowsEnvironmentExpansion(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows-only test")
+	}
+
+	env := os.Environ()
+	env = append(env, "TEST_PATH=C:\\test\\path")
+
+	cmd := `echo %TEST_PATH%`
+
+	result, err := ExecuteCommand(ExecOptions{
+		Command: cmd,
+		Env:     env,
+	})
+
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if !strings.Contains(result.Stdout, "C:\\test\\path") {
+		t.Errorf("Environment variable not expanded correctly: %s", result.Stdout)
+	}
+}
+
+func TestExecuteCommandWindowsMultipleCommands(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows-only test")
+	}
+
+	// Chain commands with &&
+	cmd := `echo first && echo second && echo third`
+
+	result, err := ExecuteCommand(ExecOptions{
+		Command: cmd,
+	})
+
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if result.ExitCode != 0 {
+		t.Errorf("Expected exit code 0, got %d", result.ExitCode)
+	}
+
+	if !strings.Contains(result.Stdout, "first") ||
+		!strings.Contains(result.Stdout, "second") ||
+		!strings.Contains(result.Stdout, "third") {
+		t.Errorf("Not all commands executed: %s", result.Stdout)
+	}
+}
+
+func TestExecuteCommandWindowsErrorHandling(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows-only test")
+	}
+
+	// Command that should fail
+	cmd := `nonexistent-command-12345`
+
+	result, err := ExecuteCommand(ExecOptions{
+		Command: cmd,
+	})
+
+	if err != nil {
+		t.Fatalf("Expected error in result, not function error: %v", err)
+	}
+
+	if result.ExitCode == 0 {
+		t.Errorf("Expected non-zero exit code for failed command")
+	}
+
+	if result.Stderr == "" {
+		t.Logf("Warning: Expected stderr output for failed command")
+	}
+}
+
+func TestExecuteCommandWindowsLongPath(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows-only test")
+	}
+
+	tmpDir := t.TempDir()
+
+	// Just test that we can execute a command in a specific directory
+	// Use dir command to verify the working directory mechanism
+	cmd := `dir`
+
+	result, err := ExecuteCommand(ExecOptions{
+		Command: cmd,
+		Dir:     tmpDir,
+	})
+
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if result.ExitCode != 0 {
+		t.Errorf("Expected exit code 0 for dir command, got %d", result.ExitCode)
+	}
+
+	// Should show the temp directory contents
+	if result.Stdout == "" {
+		t.Errorf("Expected dir output, got empty string")
+	}
+}

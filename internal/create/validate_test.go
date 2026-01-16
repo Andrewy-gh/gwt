@@ -39,6 +39,38 @@ func TestValidateBranchName(t *testing.T) {
 		{"consecutive slashes", "feature//test", true, "consecutive slashes"},
 	}
 
+	// Add Windows-specific reserved name tests
+	if filepath.Separator == '\\' { // Windows
+		windowsTests := []struct {
+			name      string
+			branch    string
+			wantError bool
+			errorMsg  string
+		}{
+			// Windows reserved device names
+			{"reserved CON", "CON", true, "reserved"},
+			{"reserved con lowercase", "con", true, "reserved"},
+			{"reserved PRN", "PRN", true, "reserved"},
+			{"reserved AUX", "AUX", true, "reserved"},
+			{"reserved NUL", "NUL", true, "reserved"},
+			{"reserved COM1", "COM1", true, "reserved"},
+			{"reserved COM9", "COM9", true, "reserved"},
+			{"reserved LPT1", "LPT1", true, "reserved"},
+			{"reserved LPT9", "LPT9", true, "reserved"},
+
+			// Reserved names with extensions (also invalid on Windows)
+			{"reserved CON.txt", "CON.txt", true, "reserved"},
+			{"reserved con.log", "con.log", true, "reserved"},
+			{"reserved COM1.dat", "COM1.dat", true, "reserved"},
+
+			// Reserved names in paths
+			{"reserved in path feature/CON", "feature/CON", true, "reserved"},
+			{"reserved in path fix/aux", "fix/aux", true, "reserved"},
+			{"reserved in path bugfix/prn", "bugfix/prn", true, "reserved"},
+		}
+		tests = append(tests, windowsTests...)
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := ValidateBranchName(tt.branch)
