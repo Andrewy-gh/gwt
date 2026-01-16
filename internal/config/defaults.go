@@ -41,5 +41,22 @@ func DefaultConfig() *Config {
 			PostCreate: []string{},
 			PostDelete: []string{},
 		},
+		Performance: DefaultPerformanceConfig(),
+	}
+}
+
+// DefaultPerformanceConfig returns default performance configuration
+func DefaultPerformanceConfig() PerformanceConfig {
+	return PerformanceConfig{
+		Cache: CacheConfig{
+			Enabled:      true,
+			TTLStatus:    "30s",
+			TTLBranches:  "5m",
+			TTLWorktrees: "1m",
+		},
+		Concurrency: ConcurrencyConfig{
+			MaxWorkers: 8,
+			BatchSize:  10,
+		},
 	}
 }

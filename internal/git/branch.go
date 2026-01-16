@@ -317,6 +317,9 @@ func CreateBranch(repoPath string, opts CreateBranchOptions) (*Branch, error) {
 		}
 	}
 
+	// Invalidate branch cache after creating branch
+	InvalidateBranchCache(repoPath)
+
 	// Get the newly created branch info
 	return GetBranch(repoPath, opts.Name)
 }
@@ -389,6 +392,9 @@ func DeleteBranch(repoPath string, opts DeleteBranchOptions) error {
 			}
 		}
 	}
+
+	// Invalidate branch cache after deleting branch
+	InvalidateBranchCache(repoPath)
 
 	return nil
 }
@@ -566,6 +572,50 @@ func GetStaleBranches(repoPath string, age time.Duration) ([]Branch, error) {
 		return nil, err
 	}
 
+	// Get branch names for batch lookup
+	branchNames := make([]string, 0, len(allBranches))
+	for _, branch := range allBranches {
+		if !branch.IsHead { // Skip current branch
+			branchNames = append(branchNames, branch.Name)
+		}
+	}
+
+	// Get all commit dates in one batch operation
+	commitDates, err := getBranchLastCommitDatesBatch(repoPath, branchNames)
+	if err != nil {
+		// Fall back to individual lookups if batch fails
+		return getStaleBranchesSequential(repoPath, allBranches, age)
+	}
+
+	cutoff := time.Now().Add(-age)
+	var staleBranches []Branch
+
+	for _, branch := range allBranches {
+		// Skip current branch
+		if branch.IsHead {
+			continue
+		}
+
+		// Get commit date from batch results
+		lastCommit, found := commitDates[branch.Name]
+		if !found {
+			continue
+		}
+
+		branch.LastCommit = lastCommit
+
+		// Check if the branch is stale
+		if lastCommit.Before(cutoff) {
+			staleBranches = append(staleBranches, branch)
+		}
+	}
+
+	return staleBranches, nil
+}
+
+// getStaleBranchesSequential is a fallback for GetStaleBranches that uses sequential lookups
+// This is used when batch operation fails
+func getStaleBranchesSequential(repoPath string, allBranches []Branch, age time.Duration) ([]Branch, error) {
 	cutoff := time.Now().Add(-age)
 	var staleBranches []Branch
 
@@ -627,6 +677,54 @@ func GetBranchLastCommitDate(repoPath, branch string) (time.Time, error) {
 	}
 
 	return time.Unix(timestamp, 0), nil
+}
+
+// getBranchLastCommitDatesBatch returns last commit dates for multiple branches in a single command
+// This is significantly faster than calling GetBranchLastCommitDate in a loop
+// Returns a map of branch name to commit date
+func getBranchLastCommitDatesBatch(repoPath string, branches []string) (map[string]time.Time, error) {
+	if err := ValidateRepository(repoPath); err != nil {
+		return nil, err
+	}
+
+	if len(branches) == 0 {
+		return make(map[string]time.Time), nil
+	}
+
+	// Build format string: branch name | commit hash | timestamp
+	// Using --simplify-by-decoration to get only branch tips
+	// Format: %(refname:short)|%(objectname)|%(committerdate:unix)
+	result, err := RunInDir(repoPath, "for-each-ref",
+		"--format=%(refname:short)|%(committerdate:unix)",
+		"refs/heads/")
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse output into map
+	dates := make(map[string]time.Time)
+	for _, line := range result.Lines() {
+		if line == "" {
+			continue
+		}
+
+		parts := strings.Split(line, "|")
+		if len(parts) != 2 {
+			continue
+		}
+
+		branchName := parts[0]
+		timestampStr := parts[1]
+
+		timestamp, err := strconv.ParseInt(timestampStr, 10, 64)
+		if err != nil {
+			continue
+		}
+
+		dates[branchName] = time.Unix(timestamp, 0)
+	}
+
+	return dates, nil
 }
 
 // DeleteBranches batch deletes the specified branches

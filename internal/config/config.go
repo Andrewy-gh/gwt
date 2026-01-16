@@ -8,6 +8,7 @@ type Config struct {
 	Dependencies DependenciesConfig   `mapstructure:"dependencies" yaml:"dependencies"`
 	Migrations   MigrationsConfig     `mapstructure:"migrations" yaml:"migrations"`
 	Hooks        HooksConfig          `mapstructure:"hooks" yaml:"hooks"`
+	Performance  PerformanceConfig    `mapstructure:"performance" yaml:"performance"`
 }
 
 // DockerConfig contains Docker/Compose-related settings
@@ -34,4 +35,24 @@ type MigrationsConfig struct {
 type HooksConfig struct {
 	PostCreate []string `mapstructure:"post_create" yaml:"post_create"`
 	PostDelete []string `mapstructure:"post_delete" yaml:"post_delete"`
+}
+
+// PerformanceConfig contains performance optimization settings
+type PerformanceConfig struct {
+	Cache       CacheConfig       `mapstructure:"cache" yaml:"cache"`
+	Concurrency ConcurrencyConfig `mapstructure:"concurrency" yaml:"concurrency"`
+}
+
+// CacheConfig controls caching behavior
+type CacheConfig struct {
+	Enabled      bool   `mapstructure:"enabled" yaml:"enabled"`
+	TTLStatus    string `mapstructure:"ttl_status" yaml:"ttl_status"`       // e.g., "30s"
+	TTLBranches  string `mapstructure:"ttl_branches" yaml:"ttl_branches"`   // e.g., "5m"
+	TTLWorktrees string `mapstructure:"ttl_worktrees" yaml:"ttl_worktrees"` // e.g., "1m"
+}
+
+// ConcurrencyConfig controls parallel operation settings
+type ConcurrencyConfig struct {
+	MaxWorkers int `mapstructure:"max_workers" yaml:"max_workers"` // Number of parallel git operations
+	BatchSize  int `mapstructure:"batch_size" yaml:"batch_size"`   // Items per batch
 }

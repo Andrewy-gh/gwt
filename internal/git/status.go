@@ -1,11 +1,13 @@
 package git
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -199,6 +201,192 @@ func GetAheadBehindCounts(worktreePath string) (int, int, error) {
 	}
 
 	return ahead, behind, nil
+}
+
+// getAheadBehindCountsOptimized returns ahead/behind counts using a single git command
+// This is 2x faster than GetAheadBehindCounts by combining both operations
+// Returns: (ahead, behind, error)
+func getAheadBehindCountsOptimized(worktreePath string) (int, int, error) {
+	if err := ValidateRepository(worktreePath); err != nil {
+		return 0, 0, err
+	}
+
+	// Use --left-right --count to get both counts in one command
+	// Format: "5\t3" means 5 ahead (left), 3 behind (right)
+	result, err := RunWithOptions(RunOptions{
+		Dir:          worktreePath,
+		Args:         []string{"rev-list", "--left-right", "--count", "HEAD...@{upstream}"},
+		AllowFailure: true,
+	})
+
+	// If there's no upstream or other error, return 0, 0
+	if err != nil || !result.Success() {
+		return 0, 0, nil
+	}
+
+	// Parse output: "ahead\tbehind"
+	output := strings.TrimSpace(result.Stdout)
+	parts := strings.Fields(output)
+	if len(parts) != 2 {
+		return 0, 0, nil
+	}
+
+	ahead, err1 := strconv.Atoi(parts[0])
+	behind, err2 := strconv.Atoi(parts[1])
+
+	if err1 != nil || err2 != nil {
+		return 0, 0, nil
+	}
+
+	return ahead, behind, nil
+}
+
+// getWorktreeStatusOptimized is an optimized version of GetWorktreeStatus
+// It uses the optimized ahead/behind function for better performance
+func getWorktreeStatusOptimized(worktreePath string) (*WorktreeStatus, error) {
+	if err := ValidateRepository(worktreePath); err != nil {
+		return nil, err
+	}
+
+	status := &WorktreeStatus{}
+
+	// Get clean/dirty status
+	result, err := RunInDir(worktreePath, "status", "--porcelain")
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse status output
+	lines := result.Lines()
+	status.Clean = len(lines) == 0
+
+	for _, line := range lines {
+		if len(line) < 2 {
+			continue
+		}
+
+		// Format: XY filename
+		// X = staged status, Y = unstaged status
+		staged := line[0]
+		unstaged := line[1]
+
+		// Count staged changes (first character)
+		if staged != ' ' && staged != '?' {
+			status.StagedCount++
+		}
+
+		// Count unstaged changes (second character)
+		if unstaged != ' ' && unstaged != '?' {
+			status.UnstagedCount++
+		}
+
+		// Count untracked files
+		if staged == '?' && unstaged == '?' {
+			status.UntrackedCount++
+		}
+	}
+
+	// Get last commit info
+	_, msg, commitTime, err := GetLastCommit(worktreePath)
+	if err == nil {
+		status.LastCommitMsg = msg
+		status.LastCommitTime = commitTime
+	}
+
+	// Get ahead/behind counts using optimized version
+	aheadCount, behindCount, err := getAheadBehindCountsOptimized(worktreePath)
+	if err == nil {
+		status.AheadCount = aheadCount
+		status.BehindCount = behindCount
+	}
+
+	return status, nil
+}
+
+// statusBatchResult holds the result of a batch status operation
+type statusBatchResult struct {
+	path   string
+	status *WorktreeStatus
+	err    error
+}
+
+// GetWorktreeStatusBatch fetches status for multiple worktrees in parallel
+// maxWorkers controls the level of parallelism (0 = use default of 8)
+// Returns a map of worktree path to status, and any errors encountered
+func GetWorktreeStatusBatch(ctx context.Context, paths []string, maxWorkers int) (map[string]*WorktreeStatus, []error) {
+	if maxWorkers <= 0 {
+		maxWorkers = 8 // Default worker count
+	}
+
+	// Create channels
+	jobs := make(chan string, len(paths))
+	results := make(chan statusBatchResult, len(paths))
+
+	// Create context with cancellation
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	// Start worker pool
+	var wg sync.WaitGroup
+	for i := 0; i < maxWorkers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case path, ok := <-jobs:
+					if !ok {
+						return
+					}
+
+					// Fetch status using optimized function
+					status, err := getWorktreeStatusOptimized(path)
+					results <- statusBatchResult{
+						path:   path,
+						status: status,
+						err:    err,
+					}
+				}
+			}
+		}()
+	}
+
+	// Send jobs
+	go func() {
+		for _, path := range paths {
+			select {
+			case <-ctx.Done():
+				return
+			case jobs <- path:
+			}
+		}
+		close(jobs)
+	}()
+
+	// Wait for workers to finish
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	// Collect results
+	statusMap := make(map[string]*WorktreeStatus)
+	var errors []error
+
+	for result := range results {
+		if result.err != nil {
+			errors = append(errors, fmt.Errorf("failed to get status for %s: %w", result.path, result.err))
+		} else {
+			statusMap[result.path] = result.status
+		}
+	}
+
+	return statusMap, errors
 }
 
 // IsBranchMerged checks if a branch is merged into another branch

@@ -267,6 +267,9 @@ func AddWorktree(repoPath string, opts AddWorktreeOptions) (*Worktree, error) {
 		}
 	}
 
+	// Invalidate cache after adding worktree
+	InvalidateWorktreeCache(repoPath)
+
 	// Get the newly created worktree info
 	return GetWorktree(opts.Path)
 }
@@ -365,6 +368,9 @@ func RemoveWorktree(repoPath string, opts RemoveWorktreeOptions) error {
 			Err:       err,
 		}
 	}
+
+	// Invalidate cache after removing worktree
+	InvalidateWorktreeCache(repoPath)
 
 	return nil
 }
