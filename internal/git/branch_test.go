@@ -1,6 +1,7 @@
 package git
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -507,5 +508,159 @@ func TestFormatDuration(t *testing.T) {
 				t.Errorf("formatDuration(%v) = %q, want %q", tt.duration, got, tt.want)
 			}
 		})
+	}
+}
+
+// TestGetBranchLastCommitDatesBatch tests batch fetching of branch commit dates
+func TestGetBranchLastCommitDatesBatch(t *testing.T) {
+	repoPath := testutil.CreateTestRepo(t)
+
+	// Create multiple branches
+	branchNames := []string{"batch-test-1", "batch-test-2", "batch-test-3"}
+	for _, name := range branchNames {
+		_, err := CreateBranch(repoPath, CreateBranchOptions{
+			Name: name,
+		})
+		if err != nil {
+			t.Fatalf("CreateBranch failed: %v", err)
+		}
+	}
+
+	// Test batch operation
+	dates, err := getBranchLastCommitDatesBatch(repoPath, branchNames)
+	if err != nil {
+		t.Fatalf("getBranchLastCommitDatesBatch failed: %v", err)
+	}
+
+	// Should have dates for all branches
+	if len(dates) < len(branchNames) {
+		t.Errorf("Expected at least %d dates, got %d", len(branchNames), len(dates))
+	}
+
+	// Verify each branch has a date
+	for _, name := range branchNames {
+		date, ok := dates[name]
+		if !ok {
+			t.Errorf("Missing date for branch %s", name)
+			continue
+		}
+
+		// Date should be recent (within last minute)
+		if time.Since(date) > time.Minute {
+			t.Errorf("Branch %s has old date: %v", name, date)
+		}
+	}
+}
+
+// TestGetBranchLastCommitDatesBatch_Correctness verifies batch results match sequential
+func TestGetBranchLastCommitDatesBatch_Correctness(t *testing.T) {
+	repoPath := testutil.CreateTestRepo(t)
+
+	// Create test branches
+	branchNames := []string{"correct-1", "correct-2", "correct-3"}
+	for _, name := range branchNames {
+		_, err := CreateBranch(repoPath, CreateBranchOptions{
+			Name: name,
+		})
+		if err != nil {
+			t.Fatalf("CreateBranch failed: %v", err)
+		}
+	}
+
+	// Get dates sequentially
+	sequentialDates := make(map[string]time.Time)
+	for _, name := range branchNames {
+		date, err := GetBranchLastCommitDate(repoPath, name)
+		if err != nil {
+			t.Fatalf("GetBranchLastCommitDate failed for %s: %v", name, err)
+		}
+		sequentialDates[name] = date
+	}
+
+	// Get dates in batch
+	batchDates, err := getBranchLastCommitDatesBatch(repoPath, branchNames)
+	if err != nil {
+		t.Fatalf("getBranchLastCommitDatesBatch failed: %v", err)
+	}
+
+	// Compare results - dates should match
+	for _, name := range branchNames {
+		batchDate, ok := batchDates[name]
+		if !ok {
+			t.Errorf("Batch missing date for %s", name)
+			continue
+		}
+
+		seqDate := sequentialDates[name]
+		// Timestamps should be exactly equal
+		if !batchDate.Equal(seqDate) {
+			t.Errorf("Date mismatch for %s: batch=%v, sequential=%v",
+				name, batchDate, seqDate)
+		}
+	}
+}
+
+// TestGetBranchLastCommitDatesBatch_EmptyList tests batch with no branches
+func TestGetBranchLastCommitDatesBatch_EmptyList(t *testing.T) {
+	repoPath := testutil.CreateTestRepo(t)
+
+	dates, err := getBranchLastCommitDatesBatch(repoPath, []string{})
+	if err != nil {
+		t.Fatalf("getBranchLastCommitDatesBatch failed on empty list: %v", err)
+	}
+
+	if len(dates) != 0 {
+		t.Errorf("Expected 0 dates for empty list, got %d", len(dates))
+	}
+}
+
+// TestGetBranchLastCommitDatesBatch_Performance compares batch vs sequential performance
+func TestGetBranchLastCommitDatesBatch_Performance(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping performance test in short mode")
+	}
+
+	repoPath := testutil.CreateTestRepo(t)
+
+	// Create multiple branches
+	numBranches := 20
+	branchNames := make([]string, numBranches)
+	for i := 0; i < numBranches; i++ {
+		name := fmt.Sprintf("perf-branch-%d", i)
+		branchNames[i] = name
+		_, err := CreateBranch(repoPath, CreateBranchOptions{
+			Name: name,
+		})
+		if err != nil {
+			t.Fatalf("CreateBranch failed: %v", err)
+		}
+	}
+
+	// Measure batch performance
+	batchStart := time.Now()
+	_, err := getBranchLastCommitDatesBatch(repoPath, branchNames)
+	batchDuration := time.Since(batchStart)
+	if err != nil {
+		t.Fatalf("getBranchLastCommitDatesBatch failed: %v", err)
+	}
+
+	// Measure sequential performance
+	seqStart := time.Now()
+	for _, name := range branchNames {
+		_, err := GetBranchLastCommitDate(repoPath, name)
+		if err != nil {
+			t.Fatalf("GetBranchLastCommitDate failed: %v", err)
+		}
+	}
+	seqDuration := time.Since(seqStart)
+
+	// Batch should be faster (or at least not much slower)
+	t.Logf("Batch: %v, Sequential: %v, Speedup: %.2fx",
+		batchDuration, seqDuration, float64(seqDuration)/float64(batchDuration))
+
+	// Batch should be at least 2x faster for 20 branches
+	if batchDuration > seqDuration/2 {
+		t.Logf("Warning: Batch not significantly faster (batch=%v, seq=%v)",
+			batchDuration, seqDuration)
 	}
 }

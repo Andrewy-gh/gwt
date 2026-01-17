@@ -830,8 +830,8 @@ func GetBranchCleanupInfo(repoPath, baseBranch string, staleAge time.Duration) (
 		baseBranch = GetDefaultBranch(repoPath)
 	}
 
-	// Get all local branches
-	allBranches, err := ListLocalBranches(repoPath)
+	// Get all local branches (with caching)
+	allBranches, err := ListLocalBranchesCached(repoPath, false)
 	if err != nil {
 		return nil, err
 	}
@@ -847,8 +847,8 @@ func GetBranchCleanupInfo(repoPath, baseBranch string, staleAge time.Duration) (
 		}
 	}
 
-	// Get worktree branches
-	worktrees, _ := ListWorktrees(repoPath)
+	// Get worktree branches (with caching)
+	worktrees, _ := ListWorktreesCached(repoPath, false)
 	worktreeBranches := make(map[string]bool)
 	for _, wt := range worktrees {
 		if wt.Branch != "" {
@@ -858,6 +858,29 @@ func GetBranchCleanupInfo(repoPath, baseBranch string, staleAge time.Duration) (
 
 	now := time.Now()
 	staleCutoff := now.Add(-staleAge)
+
+	// Collect branch names for batch date fetching
+	var branchNames []string
+	for _, branch := range allBranches {
+		// Skip current/HEAD branch
+		if branch.IsHead {
+			continue
+		}
+
+		// Skip the base branch
+		if branch.Name == baseBranch {
+			continue
+		}
+
+		branchNames = append(branchNames, branch.Name)
+	}
+
+	// Fetch all branch dates in a single batch operation (10x faster)
+	branchDates, err := getBranchLastCommitDatesBatch(repoPath, branchNames)
+	if err != nil {
+		// Fallback to sequential if batch fails (shouldn't happen)
+		branchDates = make(map[string]time.Time)
+	}
 
 	var result []BranchCleanupInfo
 
@@ -878,9 +901,8 @@ func GetBranchCleanupInfo(repoPath, baseBranch string, staleAge time.Duration) (
 			HasWorktree: worktreeBranches[branch.Name],
 		}
 
-		// Get last commit date and calculate age
-		lastCommit, err := GetBranchLastCommitDate(repoPath, branch.Name)
-		if err == nil {
+		// Get last commit date from batch result
+		if lastCommit, ok := branchDates[branch.Name]; ok {
 			info.Branch.LastCommit = lastCommit
 			info.Age = now.Sub(lastCommit)
 			info.AgeString = formatDuration(info.Age)

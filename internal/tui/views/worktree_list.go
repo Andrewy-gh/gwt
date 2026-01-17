@@ -38,6 +38,7 @@ type WorktreeListModel struct {
 	worktrees       []git.Worktree
 	filteredIndices []int // Indices into worktrees that match current filter
 	statuses        map[string]*git.WorktreeStatus
+	statusLoading   map[string]bool // Track which statuses are currently being loaded
 	selected        map[int]bool
 	cursor          int
 	loading         bool
@@ -54,6 +55,10 @@ type WorktreeListModel struct {
 	filterInput  textinput.Model
 	filterActive bool
 	filterExpr   string // Current filter expression
+
+	// Lazy loading state
+	visibleRange [2]int // [start, end] of visible worktrees
+	bufferSize   int    // Number of rows to preload above/below visible area
 }
 
 // NewWorktreeListModel creates a new worktree list view
@@ -64,12 +69,14 @@ func NewWorktreeListModel(repoPath string) *WorktreeListModel {
 	ti.Width = 50
 
 	return &WorktreeListModel{
-		repoPath:    repoPath,
-		selected:    make(map[int]bool),
-		statuses:    make(map[string]*git.WorktreeStatus),
-		spinner:     components.NewSpinner("Loading worktrees..."),
-		loading:     true,
-		filterInput: ti,
+		repoPath:      repoPath,
+		selected:      make(map[int]bool),
+		statuses:      make(map[string]*git.WorktreeStatus),
+		statusLoading: make(map[string]bool),
+		spinner:       components.NewSpinner("Loading worktrees..."),
+		loading:       true,
+		filterInput:   ti,
+		bufferSize:    5, // Preload 5 rows above and below visible area
 	}
 }
 
@@ -87,8 +94,14 @@ func (m *WorktreeListModel) Update(msg tea.Msg) (*WorktreeListModel, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
+		oldHeight := m.height
 		m.width = msg.Width
 		m.height = msg.Height
+
+		// Trigger lazy loading if height changed (more/fewer rows visible)
+		if oldHeight != msg.Height && !m.loading && !m.refreshing {
+			cmds = append(cmds, m.loadVisibleStatuses())
+		}
 
 	case tea.KeyMsg:
 		if m.loading || m.refreshing {
@@ -137,8 +150,12 @@ func (m *WorktreeListModel) Update(msg tea.Msg) (*WorktreeListModel, tea.Cmd) {
 			return m, textinput.Blink
 		case key.Matches(msg, key.NewBinding(key.WithKeys("up", "k"))):
 			m.cursorUp()
+			// Trigger lazy loading when scrolling
+			cmds = append(cmds, m.loadVisibleStatuses())
 		case key.Matches(msg, key.NewBinding(key.WithKeys("down", "j"))):
 			m.cursorDown()
+			// Trigger lazy loading when scrolling
+			cmds = append(cmds, m.loadVisibleStatuses())
 		case key.Matches(msg, key.NewBinding(key.WithKeys(" ", "x"))):
 			m.toggleSelection()
 		case key.Matches(msg, key.NewBinding(key.WithKeys("a"))):
@@ -177,11 +194,14 @@ func (m *WorktreeListModel) Update(msg tea.Msg) (*WorktreeListModel, tea.Cmd) {
 		} else {
 			m.worktrees = msg.worktrees
 			m.applyFilter() // Re-apply filter after reload
-			// Load status for each worktree
-			cmds = append(cmds, m.loadStatuses())
+			// Lazy load: only load status for visible worktrees
+			cmds = append(cmds, m.loadVisibleStatuses())
 		}
 
 	case worktreeStatusLoadedMsg:
+		// Clear loading flag
+		delete(m.statusLoading, msg.path)
+
 		if msg.err == nil && msg.status != nil {
 			m.statuses[msg.path] = msg.status
 			// Re-apply filter when status updates (for status-based filters)
@@ -703,13 +723,63 @@ func (m *WorktreeListModel) loadWorktrees() tea.Cmd {
 	}
 }
 
-func (m *WorktreeListModel) loadStatuses() tea.Cmd {
-	// Load statuses for all worktrees
+// loadVisibleStatuses loads statuses only for visible + buffer worktrees (lazy loading)
+func (m *WorktreeListModel) loadVisibleStatuses() tea.Cmd {
+	if len(m.worktrees) == 0 {
+		return nil
+	}
+
+	// Get visible worktrees (considering filter)
+	visible := m.getVisibleWorktrees()
+	if len(visible) == 0 {
+		return nil
+	}
+
+	// Calculate visible range with buffer
+	maxRows := m.height - 15 // Reserve space for title, header, and help
+	if maxRows < 5 {
+		maxRows = 5
+	}
+
+	visibleStart := m.offset
+	visibleEnd := m.offset + maxRows
+	if visibleEnd > len(visible) {
+		visibleEnd = len(visible)
+	}
+
+	// Add buffer above and below
+	loadStart := visibleStart - m.bufferSize
+	if loadStart < 0 {
+		loadStart = 0
+	}
+	loadEnd := visibleEnd + m.bufferSize
+	if loadEnd > len(visible) {
+		loadEnd = len(visible)
+	}
+
+	// Update visible range for tracking
+	m.visibleRange = [2]int{loadStart, loadEnd}
+
+	// Load statuses for visible + buffer range
 	var cmds []tea.Cmd
-	for _, wt := range m.worktrees {
+	for i := loadStart; i < loadEnd; i++ {
+		wt := visible[i]
 		path := wt.Path
+
+		// Skip if already loaded or currently loading
+		if _, exists := m.statuses[path]; exists {
+			continue
+		}
+		if m.statusLoading[path] {
+			continue
+		}
+
+		// Mark as loading
+		m.statusLoading[path] = true
+
+		// Use cached version for faster repeated views
 		cmds = append(cmds, func() tea.Msg {
-			status, err := git.GetWorktreeStatus(path)
+			status, err := git.GetWorktreeStatusCached(path, false)
 			return worktreeStatusLoadedMsg{
 				path:   path,
 				status: status,
@@ -717,7 +787,18 @@ func (m *WorktreeListModel) loadStatuses() tea.Cmd {
 			}
 		})
 	}
+
 	return tea.Batch(cmds...)
+}
+
+// loadStatuses loads statuses for all worktrees (used for refresh)
+func (m *WorktreeListModel) loadStatuses() tea.Cmd {
+	// Clear existing statuses and loading flags for fresh load
+	m.statuses = make(map[string]*git.WorktreeStatus)
+	m.statusLoading = make(map[string]bool)
+
+	// Use lazy loading
+	return m.loadVisibleStatuses()
 }
 
 // Accessors for root model

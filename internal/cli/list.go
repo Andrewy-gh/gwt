@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -18,6 +19,7 @@ type ListOptions struct {
 	All        bool     // -a, --all: Include bare/prunable worktrees
 	Filter     []string // -f, --filter: Filter expressions
 	FilterHelp bool     // --filter-help: Show filter syntax help
+	NoCache    bool     // --no-cache: Bypass cache for fresh data
 }
 
 var listOpts ListOptions
@@ -49,6 +51,7 @@ func init() {
 	listCmd.Flags().BoolVarP(&listOpts.All, "all", "a", false, "include bare and prunable worktrees")
 	listCmd.Flags().StringArrayVarP(&listOpts.Filter, "filter", "f", nil, "filter worktrees (can be specified multiple times)")
 	listCmd.Flags().BoolVar(&listOpts.FilterHelp, "filter-help", false, "show filter syntax help")
+	listCmd.Flags().BoolVar(&listOpts.NoCache, "no-cache", false, "bypass cache for fresh data")
 
 	// Mark mutually exclusive output format flags
 	listCmd.MarkFlagsMutuallyExclusive("json", "simple")
@@ -95,8 +98,8 @@ func runList(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("not a git repository")
 	}
 
-	// Get all worktrees
-	worktrees, err := git.ListWorktrees(repoPath)
+	// Get all worktrees (with caching unless bypassed)
+	worktrees, err := git.ListWorktreesCached(repoPath, listOpts.NoCache)
 	if err != nil {
 		return fmt.Errorf("failed to list worktrees: %w", err)
 	}
@@ -123,7 +126,7 @@ func runList(cmd *cobra.Command, args []string) error {
 			if status, ok := statusCache[path]; ok {
 				return status
 			}
-			status, _ := git.GetWorktreeStatus(path)
+			status, _ := git.GetWorktreeStatusCached(path, listOpts.NoCache)
 			statusCache[path] = status
 			return status
 		}
@@ -152,8 +155,17 @@ func runList(cmd *cobra.Command, args []string) error {
 }
 
 func outputJSON(worktrees []git.Worktree) error {
-	items := make([]WorktreeListItem, 0, len(worktrees))
+	// Collect all worktree paths for batch status fetch
+	paths := make([]string, len(worktrees))
+	for i, wt := range worktrees {
+		paths[i] = wt.Path
+	}
 
+	// Fetch all statuses in batch (using cached version)
+	ctx := context.Background()
+	statuses, _ := git.GetWorktreeStatusBatchCached(ctx, paths, 8, listOpts.NoCache)
+
+	items := make([]WorktreeListItem, 0, len(worktrees))
 	for _, wt := range worktrees {
 		item := WorktreeListItem{
 			Path:       wt.Path,
@@ -165,9 +177,8 @@ func outputJSON(worktrees []git.Worktree) error {
 			Locked:     wt.Locked,
 		}
 
-		// Get status for each worktree
-		status, err := git.GetWorktreeStatus(wt.Path)
-		if err == nil {
+		// Get status from batch result
+		if status, ok := statuses[wt.Path]; ok && status != nil {
 			item.Status = &WorktreeStatusInfo{
 				Clean:          status.Clean,
 				StagedCount:    status.StagedCount,
@@ -196,6 +207,16 @@ func outputTable(worktrees []git.Worktree, repoPath string) error {
 	mainPath, _ := git.GetMainWorktreePath(repoPath)
 	parentDir := filepath.Dir(mainPath)
 
+	// Collect all worktree paths for batch status fetch
+	paths := make([]string, len(worktrees))
+	for i, wt := range worktrees {
+		paths[i] = wt.Path
+	}
+
+	// Fetch all statuses in batch (using cached version)
+	ctx := context.Background()
+	statuses, _ := git.GetWorktreeStatusBatchCached(ctx, paths, 8, listOpts.NoCache)
+
 	headers := []string{"PATH", "BRANCH", "COMMIT", "STATUS", ""}
 	rows := make([][]string, 0, len(worktrees))
 
@@ -212,10 +233,9 @@ func outputTable(worktrees []git.Worktree, repoPath string) error {
 			branch = "(detached)"
 		}
 
-		// Get status
+		// Get status from batch result
 		statusStr := ""
-		status, err := git.GetWorktreeStatus(wt.Path)
-		if err == nil {
+		if status, ok := statuses[wt.Path]; ok && status != nil {
 			if status.Clean {
 				statusStr = "Clean"
 			} else {
