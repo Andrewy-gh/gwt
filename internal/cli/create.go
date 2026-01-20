@@ -284,6 +284,7 @@ func createWorktreeWithRollback(repoPath string, spec *create.BranchSpec, target
 	if err != nil {
 		return nil, fmt.Errorf("failed to create worktree: %w", err)
 	}
+	output.Success("Worktree created successfully")
 
 	// Track for rollback
 	rollback.TrackWorktree(result.Path)

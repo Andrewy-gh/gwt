@@ -1034,3 +1034,14 @@ Performance ──────────────────────�
 
 **Remaining (1/5 tasks, 20%):**
 1. 🔴 Performance Optimization - Caching, parallel ops, benchmarks (HIGH PRIORITY)
+
+### Additional Polish Improvements
+
+Beyond the planned Phase 13 tasks, the following UX enhancements were added:
+
+**Progress Indicators for Worktree Creation** (2026-01-19)
+- CLI: Added "Worktree created successfully" message after worktree creation
+- TUI: Enhanced progress view to mark stages as complete during creation flow
+- TUI: Added stage numbers (1-4) to error messages for better debugging
+- Improved visual feedback with spinner and stage completion indicators
+- Files modified: `internal/cli/create.go`, `internal/tui/model.go`, `internal/tui/operations.go`

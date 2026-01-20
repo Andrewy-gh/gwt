@@ -17,7 +17,9 @@
       "Bash(wc:*)",
       "Bash(done)",
       "Bash(grep:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(git log:*)",
+      "Bash(go env:*)"
     ]
   }
 }

@@ -15,7 +15,7 @@ import (
 // createWorktreeCmd performs the worktree creation operation
 func createWorktreeCmd(state *CreateFlowState, repoPath string) tea.Cmd {
 	return func() tea.Msg {
-		// Stage 1: Create worktree
+		// Stage 0: Create worktree
 		if state.BranchSpec == nil {
 			return CreateCompleteMsg{
 				Error: fmt.Errorf("branch spec is not set"),
@@ -30,8 +30,8 @@ func createWorktreeCmd(state *CreateFlowState, repoPath string) tea.Cmd {
 			}
 		}
 
-		// Send progress for creating worktree stage
-		// (Note: In a full implementation, you would use a channel to send progress updates)
+		// Note: Progress updates would require using channels to send intermediate messages.
+		// For now, the spinner will indicate activity and all stages will be marked complete on success.
 
 		// Create the worktree using git commands
 		var err error
@@ -65,11 +65,11 @@ func createWorktreeCmd(state *CreateFlowState, repoPath string) tea.Cmd {
 		if err != nil {
 			return CreateCompleteMsg{
 				WorktreePath: worktreePath,
-				Error:        fmt.Errorf("failed to create worktree: %w", err),
+				Error:        fmt.Errorf("Stage 1 - Failed to create worktree: %w", err),
 			}
 		}
 
-		// Stage 2: Copy files
+		// Stage 1: Copy files
 		if state.FileSelection != nil && len(state.FileSelection.Files) > 0 {
 			// Get selected files from Selection
 			var selectedFiles []copy.SelectableFile
@@ -93,13 +93,13 @@ func createWorktreeCmd(state *CreateFlowState, repoPath string) tea.Cmd {
 					// Worktree was created but file copy failed
 					return CreateCompleteMsg{
 						WorktreePath: worktreePath,
-						Error:        fmt.Errorf("worktree created but file copy failed: %w", err),
+						Error:        fmt.Errorf("Stage 2 - Worktree created but file copy failed: %w", err),
 					}
 				}
 			}
 		}
 
-		// Stage 3: Docker setup
+		// Stage 2: Docker setup
 		if state.DockerMode != "none" && state.ComposeDetected {
 			switch state.DockerMode {
 			case "shared":
@@ -127,12 +127,12 @@ func createWorktreeCmd(state *CreateFlowState, repoPath string) tea.Cmd {
 				// Worktree was created but Docker setup failed
 				return CreateCompleteMsg{
 					WorktreePath: worktreePath,
-					Error:        fmt.Errorf("worktree created but Docker setup failed: %w", err),
+					Error:        fmt.Errorf("Stage 3 - Worktree created but Docker setup failed: %w", err),
 				}
 			}
 		}
 
-		// Stage 4: Run post-creation hooks
+		// Stage 3: Run post-creation hooks
 		// Load config and execute hooks (best-effort)
 		cfg, _ := config.Load(repoPath)
 		if cfg != nil {

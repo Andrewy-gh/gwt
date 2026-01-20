@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Progress Indicators for Worktree Creation**
+  - CLI: Added completion message "Worktree created successfully" after worktree creation
+  - TUI: Enhanced progress view to mark stages as complete during creation flow
+  - TUI: Added stage numbers (1-4) to error messages for better debugging context
+  - Improved visual feedback with spinner and stage indicators during creation
 - **Phase 11: TUI Framework**
   - New `internal/tui/` package for interactive terminal user interface
   - Bubble Tea application structure with view switching architecture

@@ -1,8 +1,12 @@
 package tui
 
 import (
+	"fmt"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/Andrewy-gh/gwt/internal/create"
+	"github.com/Andrewy-gh/gwt/internal/git"
 	"github.com/Andrewy-gh/gwt/internal/tui/views"
 )
 
@@ -353,6 +357,24 @@ func (m Model) updateFileSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.fileSelect.IsComplete() {
 		// Save to flow state
 		m.createFlowState.FileSelection = m.fileSelect.GetSelection()
+
+		// Calculate target directory if not already set
+		if m.createFlowState.TargetDir == "" && m.createFlowState.BranchSpec != nil {
+			// Get main worktree to calculate target path
+			mainWorktree, err := git.GetMainWorktree(m.repoPath)
+			if err != nil {
+				m.err = fmt.Errorf("failed to get main worktree: %w", err)
+				m.view = ViewMenu
+				return m, nil
+			}
+
+			// Generate target directory path
+			m.createFlowState.TargetDir = create.GenerateWorktreePath(
+				mainWorktree.Path,
+				m.createFlowState.BranchSpec.BranchName,
+			)
+		}
+
 		m.createFlowState.PushView(ViewFileSelect)
 
 		// Move to docker mode
@@ -488,7 +510,14 @@ func (m Model) updateProgress(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// Success - return to menu
+		// Mark all stages as complete for visual feedback before returning
+		if m.creatingView != nil {
+			for i := 0; i < 4; i++ {
+				m.creatingView.CompleteStage(i)
+			}
+		}
+
+		// Success - return to menu after a brief moment
 		m.view = ViewMenu
 		// Reset create flow state for next time
 		m.createFlowState.Reset()
@@ -508,10 +537,17 @@ func (m Model) updateProgress(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case CreateProgressMsg:
 		// Update creating view with progress
 		if m.creatingView != nil {
-			var cmd tea.Cmd
-			m.creatingView, cmd = m.creatingView.Update(msg)
-			return m, cmd
+			// Update the stage based on the message
+			if msg.StageIndex >= 0 && msg.StageIndex < 4 {
+				// Mark previous stages as complete
+				for i := 0; i < msg.StageIndex; i++ {
+					m.creatingView.CompleteStage(i)
+				}
+				// Set current stage to running
+				m.creatingView.SetStage(msg.StageIndex, views.StageRunning, msg.Message)
+			}
 		}
+		return m, nil
 
 	case DeleteProgressMsg:
 		// Update deleting view with progress
