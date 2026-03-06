@@ -411,9 +411,9 @@ func copyIgnoredFiles(source, target string, repoPath string) error {
 	progressBar := output.NewProgressBar(len(selected), 20)
 
 	result, err := copy.Copy(copy.CopyOptions{
-		SourceDir:  source,
-		TargetDir:  target,
-		Files:      selected,
+		SourceDir: source,
+		TargetDir: target,
+		Files:     selected,
 		OnProgress: func(progress copy.CopyProgress) {
 			progressBar.Update(progress.FilesDone, progress.CurrentFile)
 		},
@@ -441,6 +441,7 @@ func copyIgnoredFiles(source, target string, repoPath string) error {
 
 func printSuccessMessage(result *create.CreateWorktreeResult) {
 	output.Success("Created worktree successfully!")
+	output.Success(fmt.Sprintf("Worktree is ready locally on branch %s at %s", result.Branch, result.Commit))
 	output.Println("")
 	output.Info(fmt.Sprintf("  Path:   %s", result.Path))
 	output.Info(fmt.Sprintf("  Branch: %s", result.Branch))
