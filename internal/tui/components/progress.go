@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/bubbles/progress"
 	"github.com/Andrewy-gh/gwt/internal/tui/styles"
+	"github.com/charmbracelet/bubbles/progress"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 // ProgressBar is a visual progress indicator
@@ -174,9 +174,9 @@ func formatBytes(bytes int64) string {
 // FileProgress shows progress for file operations
 type FileProgress struct {
 	ProgressBar
-	CurrentFile  string
-	FilesDone    int
-	TotalFiles   int
+	CurrentFile string
+	FilesDone   int
+	TotalFiles  int
 }
 
 // NewFileProgress creates a new file progress indicator

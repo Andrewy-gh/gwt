@@ -13,14 +13,14 @@ import (
 type Operator string
 
 const (
-	OpEquals     Operator = "="
-	OpNotEquals  Operator = "!="
-	OpGreater    Operator = ">"
-	OpLess       Operator = "<"
-	OpGreaterEq  Operator = ">="
-	OpLessEq     Operator = "<="
-	OpRegex      Operator = "~"
-	OpContains   Operator = ":"
+	OpEquals    Operator = "="
+	OpNotEquals Operator = "!="
+	OpGreater   Operator = ">"
+	OpLess      Operator = "<"
+	OpGreaterEq Operator = ">="
+	OpLessEq    Operator = "<="
+	OpRegex     Operator = "~"
+	OpContains  Operator = ":"
 )
 
 // FilterExpr represents a single filter expression

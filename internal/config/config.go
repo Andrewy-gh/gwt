@@ -2,13 +2,13 @@ package config
 
 // Config represents the root configuration from .worktree.yaml
 type Config struct {
-	CopyDefaults []string             `mapstructure:"copy_defaults" yaml:"copy_defaults"`
-	CopyExclude  []string             `mapstructure:"copy_exclude" yaml:"copy_exclude"`
-	Docker       DockerConfig         `mapstructure:"docker" yaml:"docker"`
-	Dependencies DependenciesConfig   `mapstructure:"dependencies" yaml:"dependencies"`
-	Migrations   MigrationsConfig     `mapstructure:"migrations" yaml:"migrations"`
-	Hooks        HooksConfig          `mapstructure:"hooks" yaml:"hooks"`
-	Performance  PerformanceConfig    `mapstructure:"performance" yaml:"performance"`
+	CopyDefaults []string           `mapstructure:"copy_defaults" yaml:"copy_defaults"`
+	CopyExclude  []string           `mapstructure:"copy_exclude" yaml:"copy_exclude"`
+	Docker       DockerConfig       `mapstructure:"docker" yaml:"docker"`
+	Dependencies DependenciesConfig `mapstructure:"dependencies" yaml:"dependencies"`
+	Migrations   MigrationsConfig   `mapstructure:"migrations" yaml:"migrations"`
+	Hooks        HooksConfig        `mapstructure:"hooks" yaml:"hooks"`
+	Performance  PerformanceConfig  `mapstructure:"performance" yaml:"performance"`
 }
 
 // DockerConfig contains Docker/Compose-related settings

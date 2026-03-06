@@ -228,16 +228,16 @@ type DeleteFlowState struct {
 
 // DeleteCheckResult contains pre-flight check results for a worktree
 type DeleteCheckResult struct {
-	Path         string
-	CanDelete    bool     // False if blocked
-	Blocked      bool     // True if deletion is blocked
-	BlockReason  string   // Reason for blocking
-	Warnings     []string // Non-blocking warnings
-	HasChanges   bool     // Has uncommitted changes
-	IsUnmerged   bool     // Has unmerged changes
-	IsLocked     bool     // Worktree is locked
-	IsMain       bool     // Is main worktree
-	IsCurrent    bool     // Is current working directory
+	Path        string
+	CanDelete   bool     // False if blocked
+	Blocked     bool     // True if deletion is blocked
+	BlockReason string   // Reason for blocking
+	Warnings    []string // Non-blocking warnings
+	HasChanges  bool     // Has uncommitted changes
+	IsUnmerged  bool     // Has unmerged changes
+	IsLocked    bool     // Worktree is locked
+	IsMain      bool     // Is main worktree
+	IsCurrent   bool     // Is current working directory
 }
 
 // NewDeleteFlowState creates a new delete flow state

@@ -10,8 +10,8 @@ func TestNewSelection(t *testing.T) {
 	}
 
 	matcher := NewPatternMatcher(
-		[]string{".env"},    // defaults
-		[]string{"*.log"},   // excludes (plus DefaultExcludes)
+		[]string{".env"},  // defaults
+		[]string{"*.log"}, // excludes (plus DefaultExcludes)
 	)
 
 	selection := NewSelection(files, matcher)

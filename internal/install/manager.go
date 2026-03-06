@@ -18,7 +18,7 @@ type Executor interface {
 
 // InstallOptions configures the installation process
 type InstallOptions struct {
-	Verbose    bool                 // Enable verbose output
-	Timeout    time.Duration        // Timeout for installation (0 = default 5 minutes)
-	OnProgress func(line string)    // Called for each output line
+	Verbose    bool              // Enable verbose output
+	Timeout    time.Duration     // Timeout for installation (0 = default 5 minutes)
+	OnProgress func(line string) // Called for each output line
 }

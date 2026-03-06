@@ -3,9 +3,9 @@ package components
 import (
 	"fmt"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/Andrewy-gh/gwt/internal/tui/styles"
+	"github.com/charmbracelet/bubbles/textinput"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 // TextInput is a styled text input component with validation
@@ -66,7 +66,7 @@ func (t *TextInput) View() string {
 
 	// Error message
 	if t.ErrorMsg != "" {
-		output += styles.ErrorText.Render("✘ " + t.ErrorMsg) + "\n"
+		output += styles.ErrorText.Render("✘ "+t.ErrorMsg) + "\n"
 	}
 
 	return output

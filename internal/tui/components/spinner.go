@@ -3,9 +3,9 @@ package components
 import (
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/Andrewy-gh/gwt/internal/tui/styles"
+	"github.com/charmbracelet/bubbles/spinner"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 // SpinnerStyle defines different spinner animation styles

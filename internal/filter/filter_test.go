@@ -229,10 +229,10 @@ func TestFilterMatch_Branch(t *testing.T) {
 
 func TestFilterMatch_Status(t *testing.T) {
 	tests := []struct {
-		name   string
-		value  string
-		clean  bool
-		want   bool
+		name  string
+		value string
+		clean bool
+		want  bool
 	}{
 		{"clean matches clean", "clean", true, true},
 		{"clean doesn't match dirty", "clean", false, false},

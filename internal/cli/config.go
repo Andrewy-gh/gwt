@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	configInitForce bool
+	configInitForce  bool
 	configInitOutput string
 )
 

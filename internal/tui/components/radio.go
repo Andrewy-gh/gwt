@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/bubbles/key"
 	"github.com/Andrewy-gh/gwt/internal/tui/styles"
+	"github.com/charmbracelet/bubbles/key"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 // Radio button symbols
@@ -27,10 +27,10 @@ type RadioItem struct {
 type RadioList struct {
 	Items    []RadioItem
 	Cursor   int
-	Selected int  // Index of selected item (-1 for none)
+	Selected int // Index of selected item (-1 for none)
 	Title    string
-	Height   int  // Viewport height for scrolling
-	offset   int  // Scroll offset
+	Height   int // Viewport height for scrolling
+	offset   int // Scroll offset
 }
 
 // NewRadioList creates a new radio list

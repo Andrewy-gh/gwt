@@ -12,8 +12,8 @@ type MatchResult int
 
 const (
 	MatchNone    MatchResult = iota // No match
-	MatchDefault                     // Matched copy_defaults (pre-selected)
-	MatchExclude                     // Matched copy_exclude (hidden)
+	MatchDefault                    // Matched copy_defaults (pre-selected)
+	MatchExclude                    // Matched copy_exclude (hidden)
 )
 
 // DefaultExcludes are dependency directories excluded by default

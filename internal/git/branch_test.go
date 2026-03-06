@@ -172,9 +172,9 @@ func TestRenameBranch(t *testing.T) {
 
 func TestValidateBranchName(t *testing.T) {
 	tests := []struct {
-		name      string
+		name       string
 		branchName string
-		wantError bool
+		wantError  bool
 	}{
 		{"valid name", "feature-branch", false},
 		{"valid with slashes", "feature/branch", false},

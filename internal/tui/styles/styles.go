@@ -22,12 +22,12 @@ var (
 		MarginBottom(1)
 
 	Subtitle = lipgloss.NewStyle().
-		Foreground(Muted).
-		Italic(true)
+			Foreground(Muted).
+			Italic(true)
 
 	Selected = lipgloss.NewStyle().
-		Foreground(Primary).
-		Bold(true)
+			Foreground(Primary).
+			Bold(true)
 
 	Cursor = lipgloss.NewStyle().
 		Foreground(Secondary)
@@ -42,21 +42,21 @@ var (
 		Padding(1, 2)
 
 	StatusBar = lipgloss.NewStyle().
-		Background(lipgloss.Color("#1F2937")).
-		Foreground(Text).
-		Padding(0, 1)
+			Background(lipgloss.Color("#1F2937")).
+			Foreground(Text).
+			Padding(0, 1)
 
 	ErrorText = lipgloss.NewStyle().
-		Foreground(Error)
+			Foreground(Error)
 
 	SuccessText = lipgloss.NewStyle().
-		Foreground(Success)
+			Foreground(Success)
 
 	WarningText = lipgloss.NewStyle().
-		Foreground(Warning)
+			Foreground(Warning)
 
 	MutedText = lipgloss.NewStyle().
-		Foreground(Muted)
+			Foreground(Muted)
 )
 
 // Checkbox symbols

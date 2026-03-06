@@ -4,8 +4,8 @@ import "fmt"
 
 // SelectableFile represents a file that can be selected for copying
 type SelectableFile struct {
-	IgnoredFile          // Embedded file info
-	Selected    bool     // Whether selected for copying
+	IgnoredFile             // Embedded file info
+	Selected    bool        // Whether selected for copying
 	MatchResult MatchResult // How it matched patterns
 }
 

@@ -35,23 +35,23 @@ const (
 
 // ConfigEditorModel is the configuration editor view
 type ConfigEditorModel struct {
-	repoPath   string
-	cfg        *config.Config
-	fields     []ConfigField
-	cursor     int
-	offset     int
-	width      int
-	height     int
-	editing    bool
-	editInput  textinput.Model
-	editIndex  int
-	arrayMode  bool      // In array editing mode
-	arrayItems []string  // Items in current array
+	repoPath    string
+	cfg         *config.Config
+	fields      []ConfigField
+	cursor      int
+	offset      int
+	width       int
+	height      int
+	editing     bool
+	editInput   textinput.Model
+	editIndex   int
+	arrayMode   bool     // In array editing mode
+	arrayItems  []string // Items in current array
 	arrayCursor int      // Cursor within array
-	cancelled  bool
-	saved      bool
-	dirty      bool      // Config has unsaved changes
-	err        error
+	cancelled   bool
+	saved       bool
+	dirty       bool // Config has unsaved changes
+	err         error
 }
 
 // NewConfigEditorModel creates a new config editor view

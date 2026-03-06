@@ -5,11 +5,11 @@ import (
 	"strings"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/Andrewy-gh/gwt/internal/git"
 	"github.com/Andrewy-gh/gwt/internal/tui/styles"
+	"github.com/charmbracelet/bubbles/key"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 // CleanupFilter represents the current filter mode
@@ -41,20 +41,20 @@ type branchesDeletedMsg struct {
 
 // CleanupBranchesModel is the branch cleanup view
 type CleanupBranchesModel struct {
-	repoPath    string
-	baseBranch  string
-	staleDays   int
-	branches    []BranchItem
-	cursor      int
-	filter      CleanupFilter
-	loading     bool
-	deleting    bool
-	cancelled   bool
-	err         error
-	width       int
-	height      int
-	selectAll   bool
-	viewOffset  int // For scrolling
+	repoPath   string
+	baseBranch string
+	staleDays  int
+	branches   []BranchItem
+	cursor     int
+	filter     CleanupFilter
+	loading    bool
+	deleting   bool
+	cancelled  bool
+	err        error
+	width      int
+	height     int
+	selectAll  bool
+	viewOffset int // For scrolling
 }
 
 // NewCleanupBranchesModel creates a new cleanup branches view

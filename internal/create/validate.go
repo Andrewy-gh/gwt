@@ -131,9 +131,10 @@ func SanitizeDirectoryName(branchName string) string {
 // Places worktrees as siblings to the main worktree: ../project-branch-name
 //
 // Example:
-//   Main worktree: /home/user/myproject
-//   Branch: feature/auth
-//   Result: /home/user/myproject-feature-auth
+//
+//	Main worktree: /home/user/myproject
+//	Branch: feature/auth
+//	Result: /home/user/myproject-feature-auth
 func GenerateWorktreePath(mainWorktreePath, branchName string) string {
 	// Get parent directory of main worktree
 	parentDir := filepath.Dir(mainWorktreePath)

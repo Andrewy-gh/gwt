@@ -3,13 +3,13 @@ package tui
 import (
 	"fmt"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/Andrewy-gh/gwt/internal/config"
 	"github.com/Andrewy-gh/gwt/internal/copy"
 	"github.com/Andrewy-gh/gwt/internal/create"
 	"github.com/Andrewy-gh/gwt/internal/docker"
 	"github.com/Andrewy-gh/gwt/internal/git"
 	"github.com/Andrewy-gh/gwt/internal/hooks"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 // createWorktreeCmd performs the worktree creation operation

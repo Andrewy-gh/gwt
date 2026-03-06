@@ -150,11 +150,11 @@ func TestParseVolumeMount(t *testing.T) {
 
 func TestParsePortMapping(t *testing.T) {
 	tests := []struct {
-		name              string
-		portStr           string
-		expectHost        int
-		expectContainer   int
-		expectProtocol    string
+		name            string
+		portStr         string
+		expectHost      int
+		expectContainer int
+		expectProtocol  string
 	}{
 		{
 			name:            "Simple mapping",

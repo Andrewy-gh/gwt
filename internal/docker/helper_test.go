@@ -12,9 +12,9 @@ func TestGenerateHelperScript(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	tests := []struct {
-		name         string
-		shellType    string
-		expectedFile string
+		name            string
+		shellType       string
+		expectedFile    string
 		expectedContent []string
 	}{
 		{

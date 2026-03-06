@@ -43,8 +43,8 @@ func TestParseIgnoredOutput(t *testing.T) {
 			expected: []string{".env", "node_modules", ".venv", "*.log"},
 		},
 		{
-			name: "empty output",
-			output: ``,
+			name:     "empty output",
+			output:   ``,
 			expected: []string{},
 		},
 		{

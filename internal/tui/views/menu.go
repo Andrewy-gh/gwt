@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/bubbles/key"
 	"github.com/Andrewy-gh/gwt/internal/tui/styles"
+	"github.com/charmbracelet/bubbles/key"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 // MenuItem represents a menu item
@@ -18,10 +18,10 @@ type MenuItem struct {
 
 // MenuModel is the main menu view
 type MenuModel struct {
-	cursor      int
-	items       []MenuItem
-	selected    bool
-	shouldQuit  bool
+	cursor     int
+	items      []MenuItem
+	selected   bool
+	shouldQuit bool
 }
 
 // NewMenuModel creates a new menu model

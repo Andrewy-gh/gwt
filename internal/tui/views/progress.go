@@ -4,17 +4,17 @@ import (
 	"fmt"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/Andrewy-gh/gwt/internal/copy"
 	"github.com/Andrewy-gh/gwt/internal/tui/components"
 	"github.com/Andrewy-gh/gwt/internal/tui/styles"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 // ProgressStage represents a stage in a multi-stage operation
 type ProgressStage struct {
-	Name     string
-	Status   StageStatus
-	Message  string
+	Name    string
+	Status  StageStatus
+	Message string
 }
 
 // StageStatus represents the status of a stage
@@ -104,9 +104,9 @@ func NewCopyingModel(filesTotal int, bytesTotal int64) *CopyingModel {
 	progressBar.ShowPercent = true
 
 	return &CopyingModel{
-		progressBar:  progressBar,
-		filesTotal:   filesTotal,
-		bytesTotal:   bytesTotal,
+		progressBar: progressBar,
+		filesTotal:  filesTotal,
+		bytesTotal:  bytesTotal,
 	}
 }
 
@@ -304,13 +304,13 @@ func (m *CreatingModel) View(width, height int) string {
 
 // DeletingModel is the view for worktree deletion progress
 type DeletingModel struct {
-	targets       []string
-	current       int
-	currentPath   string
-	failed        []string
-	width         int
-	height        int
-	spinner       *components.Spinner
+	targets     []string
+	current     int
+	currentPath string
+	failed      []string
+	width       int
+	height      int
+	spinner     *components.Spinner
 }
 
 // NewDeletingModel creates a new deleting view

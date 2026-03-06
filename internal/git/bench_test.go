@@ -93,9 +93,9 @@ func createBenchmarkRepo(b *testing.B, numWorktrees, numBranches int) string {
 // BenchmarkListWorktrees benchmarks the worktree listing operation
 func BenchmarkListWorktrees(b *testing.B) {
 	testCases := []struct {
-		name        string
-		worktrees   int
-		branches    int
+		name      string
+		worktrees int
+		branches  int
 	}{
 		{"Small_5wt_10br", 5, 10},
 		{"Medium_20wt_50br", 20, 50},

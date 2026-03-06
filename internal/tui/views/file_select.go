@@ -4,28 +4,28 @@ import (
 	"fmt"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/bubbles/key"
 	"github.com/Andrewy-gh/gwt/internal/config"
 	"github.com/Andrewy-gh/gwt/internal/copy"
 	"github.com/Andrewy-gh/gwt/internal/tui/components"
 	"github.com/Andrewy-gh/gwt/internal/tui/styles"
+	"github.com/charmbracelet/bubbles/key"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 // FileSelectModel is the file selection view
 type FileSelectModel struct {
-	fileList      *components.CheckboxList
-	spinner       *components.Spinner
-	selection     *copy.Selection
-	ignoredFiles  []copy.IgnoredFile
-	repoPath      string
-	complete      bool
-	loading       bool
-	totalSize     string
-	selectedSize  string
-	width         int
-	height        int
-	err           error
+	fileList     *components.CheckboxList
+	spinner      *components.Spinner
+	selection    *copy.Selection
+	ignoredFiles []copy.IgnoredFile
+	repoPath     string
+	complete     bool
+	loading      bool
+	totalSize    string
+	selectedSize string
+	width        int
+	height       int
+	err          error
 }
 
 // NewFileSelectModel creates a new file selection view

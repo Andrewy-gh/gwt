@@ -4,24 +4,24 @@ import (
 	"fmt"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/bubbles/key"
 	"github.com/Andrewy-gh/gwt/internal/git"
 	"github.com/Andrewy-gh/gwt/internal/tui/components"
 	"github.com/Andrewy-gh/gwt/internal/tui/styles"
+	"github.com/charmbracelet/bubbles/key"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 // CreateSourceModel is the source/ref selection view
 type CreateSourceModel struct {
-	refInput      *components.TextInput
-	suggestions   *components.Table
-	repoPath      string
-	complete      bool
-	startPoint    string
-	focusIndex    int // 0=input, 1=suggestions
-	width         int
-	height        int
-	err           error
+	refInput           *components.TextInput
+	suggestions        *components.Table
+	repoPath           string
+	complete           bool
+	startPoint         string
+	focusIndex         int // 0=input, 1=suggestions
+	width              int
+	height             int
+	err                error
 	loadingSuggestions bool
 }
 

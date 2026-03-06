@@ -20,19 +20,19 @@ type CreateOptions struct {
 type BranchSource int
 
 const (
-	BranchSourceNewFromHEAD BranchSource = iota // New branch from current HEAD
-	BranchSourceNewFromRef                      // New branch from specific ref
-	BranchSourceLocalExisting                   // Existing local branch
-	BranchSourceRemote                          // Remote branch (create tracking)
+	BranchSourceNewFromHEAD   BranchSource = iota // New branch from current HEAD
+	BranchSourceNewFromRef                        // New branch from specific ref
+	BranchSourceLocalExisting                     // Existing local branch
+	BranchSourceRemote                            // Remote branch (create tracking)
 )
 
 // BranchSpec contains the specification for worktree creation
 type BranchSpec struct {
-	Source      BranchSource // Type of branch operation
-	BranchName  string       // Target branch name
-	StartPoint  string       // Starting point for new branch (commit, branch, tag)
-	RemoteName  string       // Remote name (for remote branches)
-	RemoteBranch string      // Full remote branch name (origin/feature)
+	Source       BranchSource // Type of branch operation
+	BranchName   string       // Target branch name
+	StartPoint   string       // Starting point for new branch (commit, branch, tag)
+	RemoteName   string       // Remote name (for remote branches)
+	RemoteBranch string       // Full remote branch name (origin/feature)
 }
 
 // ParseBranchSpec parses create options into a BranchSpec

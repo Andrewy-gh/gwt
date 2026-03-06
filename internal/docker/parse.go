@@ -11,10 +11,10 @@ import (
 
 // ComposeConfig represents a parsed docker-compose file
 type ComposeConfig struct {
-	Version  string                     `yaml:"version,omitempty"`
-	Services map[string]Service         `yaml:"services"`
-	Volumes  map[string]VolumeConfig    `yaml:"volumes,omitempty"`
-	Networks map[string]interface{}     `yaml:"networks,omitempty"`
+	Version  string                  `yaml:"version,omitempty"`
+	Services map[string]Service      `yaml:"services"`
+	Volumes  map[string]VolumeConfig `yaml:"volumes,omitempty"`
+	Networks map[string]interface{}  `yaml:"networks,omitempty"`
 }
 
 // Service represents a docker-compose service

@@ -11,49 +11,49 @@ func TestDetectComposeFiles(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	tests := []struct {
-		name          string
-		files         []string
-		expectError   bool
-		expectCount   int
-		expectBase    string
+		name           string
+		files          []string
+		expectError    bool
+		expectCount    int
+		expectBase     string
 		expectOverride int
 	}{
 		{
-			name:          "No compose files",
-			files:         []string{},
-			expectError:   true,
-			expectCount:   0,
+			name:        "No compose files",
+			files:       []string{},
+			expectError: true,
+			expectCount: 0,
 		},
 		{
-			name:          "Single docker-compose.yml",
-			files:         []string{"docker-compose.yml"},
-			expectError:   false,
-			expectCount:   1,
-			expectBase:    "docker-compose.yml",
+			name:           "Single docker-compose.yml",
+			files:          []string{"docker-compose.yml"},
+			expectError:    false,
+			expectCount:    1,
+			expectBase:     "docker-compose.yml",
 			expectOverride: 0,
 		},
 		{
-			name:          "docker-compose.yml with override",
-			files:         []string{"docker-compose.yml", "docker-compose.dev.yml"},
-			expectError:   false,
-			expectCount:   2,
-			expectBase:    "docker-compose.yml",
+			name:           "docker-compose.yml with override",
+			files:          []string{"docker-compose.yml", "docker-compose.dev.yml"},
+			expectError:    false,
+			expectCount:    2,
+			expectBase:     "docker-compose.yml",
 			expectOverride: 1,
 		},
 		{
-			name:          "compose.yml format",
-			files:         []string{"compose.yml"},
-			expectError:   false,
-			expectCount:   1,
-			expectBase:    "compose.yml",
+			name:           "compose.yml format",
+			files:          []string{"compose.yml"},
+			expectError:    false,
+			expectCount:    1,
+			expectBase:     "compose.yml",
 			expectOverride: 0,
 		},
 		{
-			name:          "Multiple override files",
-			files:         []string{"docker-compose.yml", "docker-compose.dev.yml", "docker-compose.prod.yml"},
-			expectError:   false,
-			expectCount:   3,
-			expectBase:    "docker-compose.yml",
+			name:           "Multiple override files",
+			files:          []string{"docker-compose.yml", "docker-compose.dev.yml", "docker-compose.prod.yml"},
+			expectError:    false,
+			expectCount:    3,
+			expectBase:     "docker-compose.yml",
 			expectOverride: 2,
 		},
 	}

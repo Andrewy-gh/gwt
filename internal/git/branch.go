@@ -811,11 +811,11 @@ func GetDefaultBranch(repoPath string) string {
 
 // BranchCleanupInfo contains information about a branch for cleanup purposes
 type BranchCleanupInfo struct {
-	Branch     Branch
-	IsMerged   bool
-	IsStale    bool
-	Age        time.Duration
-	AgeString  string // Human-readable age (e.g., "3 days", "2 weeks")
+	Branch      Branch
+	IsMerged    bool
+	IsStale     bool
+	Age         time.Duration
+	AgeString   string // Human-readable age (e.g., "3 days", "2 weeks")
 	HasWorktree bool
 }
 

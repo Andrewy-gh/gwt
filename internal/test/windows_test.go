@@ -163,9 +163,9 @@ func TestWindowsAbsolutePaths(t *testing.T) {
 	}
 
 	tests := []struct {
-		name     string
-		path     string
-		wantAbs  bool
+		name    string
+		path    string
+		wantAbs bool
 	}{
 		{"drive letter", `C:\projects\app`, true},
 		{"forward slashes", `C:/projects/app`, true},
@@ -253,7 +253,7 @@ func TestLongPaths(t *testing.T) {
 	err := os.MkdirAll(longPath, 0755)
 	if err != nil {
 		if strings.Contains(err.Error(), "file name too long") ||
-		   strings.Contains(err.Error(), "cannot find the path") {
+			strings.Contains(err.Error(), "cannot find the path") {
 			t.Logf("Long paths not enabled (expected): %v", err)
 			t.Skip("Long paths not enabled on this system")
 		}

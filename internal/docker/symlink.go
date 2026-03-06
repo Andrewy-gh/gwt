@@ -13,9 +13,9 @@ type LinkResult int
 
 const (
 	LinkSymlink  LinkResult = iota // Symlink created successfully
-	LinkJunction                    // Junction created (Windows only)
-	LinkCopy                        // Fell back to copy
-	LinkFailed                      // All methods failed
+	LinkJunction                   // Junction created (Windows only)
+	LinkCopy                       // Fell back to copy
+	LinkFailed                     // All methods failed
 )
 
 // String returns a human-readable description of the link result

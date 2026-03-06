@@ -40,9 +40,9 @@ type ValidateBranchMsg struct {
 
 // BranchValidationResultMsg contains branch validation result
 type BranchValidationResultMsg struct {
-	Valid   bool
-	Error   string
-	Spec    *create.BranchSpec
+	Valid bool
+	Error string
+	Spec  *create.BranchSpec
 }
 
 // Remote branch messages
@@ -109,12 +109,12 @@ type StartCreateOperationMsg struct{}
 
 // CreateProgressMsg reports creation progress
 type CreateProgressMsg struct {
-	Stage       string  // Current stage name
-	StageIndex  int     // Current stage index (0-based)
-	TotalStages int     // Total number of stages
-	Message     string  // Progress message
-	BytesCopied int64   // Bytes copied (for file copy stage)
-	TotalBytes  int64   // Total bytes to copy
+	Stage       string // Current stage name
+	StageIndex  int    // Current stage index (0-based)
+	TotalStages int    // Total number of stages
+	Message     string // Progress message
+	BytesCopied int64  // Bytes copied (for file copy stage)
+	TotalBytes  int64  // Total bytes to copy
 }
 
 // CreateCompleteMsg signals worktree creation is complete

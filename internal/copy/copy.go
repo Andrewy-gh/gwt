@@ -21,11 +21,11 @@ type ProgressCallback func(progress CopyProgress)
 
 // CopyOptions configures the copy operation
 type CopyOptions struct {
-	SourceDir    string            // Source directory (main worktree)
-	TargetDir    string            // Target directory (new worktree)
-	Files        []SelectableFile  // Files to copy
-	OnProgress   ProgressCallback  // Progress callback (optional)
-	PreserveMode bool              // Preserve file permissions
+	SourceDir    string           // Source directory (main worktree)
+	TargetDir    string           // Target directory (new worktree)
+	Files        []SelectableFile // Files to copy
+	OnProgress   ProgressCallback // Progress callback (optional)
+	PreserveMode bool             // Preserve file permissions
 }
 
 // CopyResult reports the result of a copy operation
