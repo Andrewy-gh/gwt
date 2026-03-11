@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/Andrewy-gh/gwt/internal/pathutil"
 )
 
 // ValidateBranchName checks if a branch name is valid for git
@@ -140,7 +142,7 @@ func GenerateWorktreePath(mainWorktreePath, branchName string) string {
 	parentDir := filepath.Dir(mainWorktreePath)
 
 	// Get project name from main worktree
-	projectName := filepath.Base(mainWorktreePath)
+	projectName := pathutil.Base(mainWorktreePath)
 
 	// Sanitize branch name for directory
 	dirName := SanitizeDirectoryName(branchName)

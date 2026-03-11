@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	"github.com/Andrewy-gh/gwt/internal/pathutil"
 )
 
 // Validate checks the config for invalid values
@@ -128,7 +130,7 @@ func ValidatePaths(paths []string) []error {
 		}
 
 		// Warn about absolute paths (but don't error)
-		if filepath.IsAbs(path) {
+		if pathutil.IsAbsAny(path) {
 			// This is more of a warning, but we'll include it as an error
 			// In practice, you might want to separate warnings from errors
 			errors = append(errors, fmt.Errorf("absolute path '%s' may not work across different systems", path))

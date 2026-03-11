@@ -88,6 +88,11 @@ func TestValidatePaths(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name:    "absolute paths with forward slashes",
+			paths:   []string{"C:/absolute/path"},
+			wantErr: true,
+		},
+		{
 			name:    "empty path",
 			paths:   []string{""},
 			wantErr: true,
