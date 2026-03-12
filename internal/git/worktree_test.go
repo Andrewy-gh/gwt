@@ -2,6 +2,8 @@ package git
 
 import (
 	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/Andrewy-gh/gwt/internal/testutil"
@@ -252,5 +254,37 @@ detached`
 	// Check third worktree
 	if !worktrees[2].IsDetached {
 		t.Errorf("third worktree should be detached")
+	}
+}
+
+func TestNormalizeWorktreePath_ResolvesSymlink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink normalization is covered by Windows-specific path handling")
+	}
+
+	rootDir := t.TempDir()
+	targetDir := filepath.Join(rootDir, "target")
+	linkDir := filepath.Join(rootDir, "link")
+
+	if err := os.Mkdir(targetDir, 0755); err != nil {
+		t.Fatalf("failed to create target dir: %v", err)
+	}
+
+	if err := os.Symlink(targetDir, linkDir); err != nil {
+		t.Skipf("symlink creation unavailable: %v", err)
+	}
+
+	targetPath, err := normalizeWorktreePath(targetDir)
+	if err != nil {
+		t.Fatalf("normalizeWorktreePath failed for target dir: %v", err)
+	}
+
+	linkPath, err := normalizeWorktreePath(linkDir)
+	if err != nil {
+		t.Fatalf("normalizeWorktreePath failed for symlink dir: %v", err)
+	}
+
+	if targetPath != linkPath {
+		t.Fatalf("expected symlink and target to normalize to the same path, got %q and %q", targetPath, linkPath)
 	}
 }

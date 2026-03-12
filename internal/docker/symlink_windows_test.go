@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-// TestCreateSymlinkWithPrivilege tests symlink creation when privilege is available
+// TestCreateSymlinkWithPrivilege tests that CreateSymlink produces an accessible link target.
 func TestCreateSymlinkWithPrivilege(t *testing.T) {
 	tmpDir := t.TempDir()
 	target := filepath.Join(tmpDir, "target")
@@ -32,11 +32,10 @@ func TestCreateSymlinkWithPrivilege(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Verify symlink was created
-	if info, err := os.Lstat(link); err != nil {
-		t.Fatalf("symlink not created: %v", err)
-	} else if info.Mode()&os.ModeSymlink == 0 {
-		t.Errorf("created link is not a symlink")
+	// Verify the link target is accessible, whether CreateSymlink used a symlink,
+	// junction, or directory copy fallback.
+	if _, err := os.Stat(link); err != nil {
+		t.Fatalf("link not created: %v", err)
 	}
 
 	// Test reading through symlink
@@ -172,14 +171,23 @@ func TestCreateSymlinkRelativePath(t *testing.T) {
 	}
 }
 
-// TestCreateSymlinkAlreadyExists tests behavior when link already exists
+// TestCreateSymlinkAlreadyExists tests that CreateSymlink replaces an existing target.
 func TestCreateSymlinkAlreadyExists(t *testing.T) {
 	tmpDir := t.TempDir()
 	target := filepath.Join(tmpDir, "target")
+	replacementTarget := filepath.Join(tmpDir, "replacement-target")
 	link := filepath.Join(tmpDir, "link")
 
 	if err := os.Mkdir(target, 0755); err != nil {
 		t.Fatalf("failed to create target: %v", err)
+	}
+	if err := os.Mkdir(replacementTarget, 0755); err != nil {
+		t.Fatalf("failed to create replacement target: %v", err)
+	}
+
+	originalFile := filepath.Join(target, "original.txt")
+	if err := os.WriteFile(originalFile, []byte("original"), 0644); err != nil {
+		t.Fatalf("failed to seed original target: %v", err)
 	}
 
 	// Create link first time
@@ -187,10 +195,21 @@ func TestCreateSymlinkAlreadyExists(t *testing.T) {
 		t.Skipf("Cannot create symlink: %v", err)
 	}
 
-	// Try to create again
-	err := CreateSymlink(target, link)
-	if err == nil {
-		t.Errorf("expected error when link already exists")
+	replacementFile := filepath.Join(replacementTarget, "replacement.txt")
+	if err := os.WriteFile(replacementFile, []byte("replacement"), 0644); err != nil {
+		t.Fatalf("failed to seed replacement target: %v", err)
+	}
+
+	// Try to create again; the helper removes an existing target and recreates it.
+	if err := CreateSymlink(replacementTarget, link); err != nil {
+		t.Fatalf("expected existing target to be replaced, got: %v", err)
+	}
+
+	if _, err := os.Stat(filepath.Join(link, "replacement.txt")); err != nil {
+		t.Fatalf("expected replacement target to be accessible through recreated link: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(link, "original.txt")); !os.IsNotExist(err) {
+		t.Fatalf("expected recreated link to stop pointing at the original target, got err=%v", err)
 	}
 }
 

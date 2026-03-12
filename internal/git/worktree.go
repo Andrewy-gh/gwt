@@ -152,12 +152,10 @@ func GetWorktree(worktreePath string) (*Worktree, error) {
 		return nil, err
 	}
 
-	// Get the absolute path
-	absPath, err := filepath.Abs(worktreePath)
+	absPath, err := normalizeWorktreePath(worktreePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get absolute path: %w", err)
+		return nil, err
 	}
-	absPath = filepath.Clean(absPath)
 
 	// List all worktrees
 	worktrees, err := ListWorktrees(worktreePath)
@@ -167,13 +165,32 @@ func GetWorktree(worktreePath string) (*Worktree, error) {
 
 	// Find the matching worktree
 	for _, wt := range worktrees {
-		wtPath := filepath.Clean(wt.Path)
+		wtPath, err := normalizeWorktreePath(wt.Path)
+		if err != nil {
+			return nil, err
+		}
 		if wtPath == absPath {
 			return &wt, nil
 		}
 	}
 
 	return nil, fmt.Errorf("worktree not found: %s", worktreePath)
+}
+
+func normalizeWorktreePath(worktreePath string) (string, error) {
+	absPath, err := filepath.Abs(worktreePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to get absolute path: %w", err)
+	}
+
+	absPath = filepath.Clean(absPath)
+
+	resolvedPath, err := filepath.EvalSymlinks(absPath)
+	if err == nil {
+		return filepath.Clean(resolvedPath), nil
+	}
+
+	return absPath, nil
 }
 
 // FindWorktreeByBranch finds a worktree by branch name
