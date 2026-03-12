@@ -56,9 +56,8 @@ func TestGetRepoRoot(t *testing.T) {
 		t.Fatalf("GetRepoRoot failed: %v", err)
 	}
 
-	// Normalize paths for comparison
-	expectedRoot := filepath.Clean(repoPath)
-	actualRoot := filepath.Clean(root)
+	expectedRoot := mustNormalizeTestPath(t, repoPath)
+	actualRoot := mustNormalizeTestPath(t, root)
 
 	if actualRoot != expectedRoot {
 		t.Errorf("expected root %s, got %s", expectedRoot, actualRoot)
@@ -73,7 +72,7 @@ func TestGetRepoRoot(t *testing.T) {
 		t.Fatalf("GetRepoRoot from subdir failed: %v", err)
 	}
 
-	actualRoot = filepath.Clean(root)
+	actualRoot = mustNormalizeTestPath(t, root)
 	if actualRoot != expectedRoot {
 		t.Errorf("expected root %s from subdir, got %s", expectedRoot, actualRoot)
 	}
@@ -120,13 +119,23 @@ func TestGetMainWorktreePath(t *testing.T) {
 		t.Fatalf("GetMainWorktreePath failed: %v", err)
 	}
 
-	// Normalize paths for comparison
-	expectedPath := filepath.Clean(repoPath)
-	actualPath := filepath.Clean(mainPath)
+	expectedPath := mustNormalizeTestPath(t, repoPath)
+	actualPath := mustNormalizeTestPath(t, mainPath)
 
 	if actualPath != expectedPath {
 		t.Errorf("expected main worktree %s, got %s", expectedPath, actualPath)
 	}
+}
+
+func mustNormalizeTestPath(t *testing.T, path string) string {
+	t.Helper()
+
+	normalized, err := normalizeWorktreePath(path)
+	if err != nil {
+		t.Fatalf("failed to normalize path %q: %v", path, err)
+	}
+
+	return filepath.Clean(normalized)
 }
 
 func TestIsInsideWorktree(t *testing.T) {
