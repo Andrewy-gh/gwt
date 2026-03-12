@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -153,41 +152,6 @@ func GetLockInfo(repoPath string) (*LockInfo, error) {
 	}
 
 	return &info, nil
-}
-
-// isProcessRunning checks if a process with the given PID is running
-func isProcessRunning(pid int) bool {
-	if pid <= 0 {
-		return false
-	}
-
-	// Platform-specific process check
-	if runtime.GOOS == "windows" {
-		// On Windows, try to open the process handle
-		// This is a simplified check - a full implementation would use syscall
-		// For now, we'll use a heuristic: check if we can send signal 0
-		process, err := os.FindProcess(pid)
-		if err != nil {
-			return false
-		}
-
-		// On Windows, FindProcess always succeeds, so we need another check
-		// Try to signal the process (signal 0 doesn't actually send a signal)
-		// This is not perfect on Windows, but it's a reasonable heuristic
-		err = process.Signal(os.Signal(nil))
-		return err == nil
-	}
-
-	// On Unix, try to send signal 0 (doesn't actually send a signal, just checks if process exists)
-	process, err := os.FindProcess(pid)
-	if err != nil {
-		return false
-	}
-
-	// Signal 0 is a special case that checks if the process exists
-	// without actually sending a signal
-	err = process.Signal(os.Signal(nil))
-	return err == nil
 }
 
 // ForceUnlock forcibly removes the lock file

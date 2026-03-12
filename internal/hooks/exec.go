@@ -3,6 +3,7 @@ package hooks
 import (
 	"bytes"
 	"context"
+	"os"
 	"os/exec"
 	"runtime"
 	"time"
@@ -36,14 +37,31 @@ func ExecuteCommand(opts ExecOptions) (*ExecResult, error) {
 
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
-		cmd = exec.CommandContext(ctx, "cmd.exe", "/C", opts.Command)
+		wrapper, err := os.CreateTemp("", "gwt-hook-*.cmd")
+		if err != nil {
+			return nil, err
+		}
+		defer os.Remove(wrapper.Name())
+
+		script := "@echo off\r\n" + opts.Command + "\r\n"
+		if _, err := wrapper.WriteString(script); err != nil {
+			wrapper.Close()
+			return nil, err
+		}
+		if err := wrapper.Close(); err != nil {
+			return nil, err
+		}
+
+		// Use a temporary .cmd wrapper to avoid Go's argv quoting mismatch with
+		// cmd.exe and batch files on Windows.
+		cmd = exec.CommandContext(ctx, "cmd.exe", "/D", "/C", wrapper.Name())
 	} else {
 		cmd = exec.CommandContext(ctx, "/bin/sh", "-c", opts.Command)
 	}
 
 	cmd.Dir = opts.Dir
 	if len(opts.Env) > 0 {
-		cmd.Env = opts.Env
+		cmd.Env = append(os.Environ(), opts.Env...)
 	}
 
 	var stdout, stderr bytes.Buffer

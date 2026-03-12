@@ -43,8 +43,7 @@ func GetRepoRoot(path string) (string, error) {
 	}
 
 	root := strings.TrimSpace(result.Stdout)
-	// Convert to native path separators
-	return filepath.FromSlash(root), nil
+	return normalizeWorktreePath(filepath.FromSlash(root))
 }
 
 // GetGitDir returns the path to the .git directory
@@ -81,7 +80,7 @@ func GetMainWorktreePath(path string) (string, error) {
 	for _, line := range lines {
 		if strings.HasPrefix(line, "worktree ") {
 			mainPath := strings.TrimPrefix(line, "worktree ")
-			return filepath.FromSlash(mainPath), nil
+			return normalizeWorktreePath(filepath.FromSlash(mainPath))
 		}
 	}
 

@@ -505,11 +505,15 @@ func TestProcessLockCreation(t *testing.T) {
 		t.Skip("Windows-only test")
 	}
 
-	tmpDir := t.TempDir()
-	lockFile := filepath.Join(tmpDir, ".gwt.lock")
+	repoPath := testutil.CreateTestRepo(t)
+	gitDir, err := git.GetGitDir(repoPath)
+	if err != nil {
+		t.Fatalf("failed to get git dir: %v", err)
+	}
+	lockFile := filepath.Join(gitDir, "gwt.lock")
 
 	// Create a lock
-	lock, err := create.AcquireLock(tmpDir)
+	lock, err := create.AcquireLock(repoPath)
 	if err != nil {
 		t.Fatalf("failed to acquire lock: %v", err)
 	}
@@ -529,17 +533,17 @@ func TestProcessLockConflict(t *testing.T) {
 		t.Skip("Windows-only test")
 	}
 
-	tmpDir := t.TempDir()
+	repoPath := testutil.CreateTestRepo(t)
 
 	// Acquire first lock
-	lock1, err := create.AcquireLock(tmpDir)
+	lock1, err := create.AcquireLock(repoPath)
 	if err != nil {
 		t.Fatalf("failed to acquire first lock: %v", err)
 	}
 	defer lock1.Release()
 
 	// Try to acquire second lock (should fail)
-	lock2, err := create.AcquireLock(tmpDir)
+	lock2, err := create.AcquireLock(repoPath)
 	if err == nil {
 		lock2.Release()
 		t.Fatalf("second lock should have failed")
@@ -554,11 +558,15 @@ func TestProcessLockCleanup(t *testing.T) {
 		t.Skip("Windows-only test")
 	}
 
-	tmpDir := t.TempDir()
-	lockFile := filepath.Join(tmpDir, ".gwt.lock")
+	repoPath := testutil.CreateTestRepo(t)
+	gitDir, err := git.GetGitDir(repoPath)
+	if err != nil {
+		t.Fatalf("failed to get git dir: %v", err)
+	}
+	lockFile := filepath.Join(gitDir, "gwt.lock")
 
 	// Acquire and release lock
-	lock, err := create.AcquireLock(tmpDir)
+	lock, err := create.AcquireLock(repoPath)
 	if err != nil {
 		t.Fatalf("failed to acquire lock: %v", err)
 	}
