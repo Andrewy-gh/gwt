@@ -441,7 +441,7 @@ func copyIgnoredFiles(source, target string, repoPath string) error {
 
 func printSuccessMessage(result *create.CreateWorktreeResult) {
 	output.Success("Created worktree successfully!")
-	output.Success(fmt.Sprintf("Worktree is ready locally on branch %s at %s", result.Branch, result.Commit))
+	output.Success(formatLocalWorktreeState(result))
 	output.Println("")
 	output.Info(fmt.Sprintf("  Path:   %s", result.Path))
 	output.Info(fmt.Sprintf("  Branch: %s", result.Branch))
@@ -454,6 +454,14 @@ func printSuccessMessage(result *create.CreateWorktreeResult) {
 	output.Println("")
 	output.Info("To start working:")
 	output.Info(fmt.Sprintf("  cd %s", result.Path))
+}
+
+func formatLocalWorktreeState(result *create.CreateWorktreeResult) string {
+	if result.Commit == "" {
+		return fmt.Sprintf("Worktree is ready locally on branch %s", result.Branch)
+	}
+
+	return fmt.Sprintf("Worktree is ready locally on branch %s at commit %s", result.Branch, result.Commit)
 }
 
 // setupDocker sets up Docker Compose for the new worktree
