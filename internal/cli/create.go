@@ -3,6 +3,8 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -45,10 +47,12 @@ var createCmd = &cobra.Command{
 	Long: `Create a new worktree from a new or existing branch.
 
 Examples:
+  gwt create feature-auth             Create worktree with new branch from HEAD
   gwt create -b feature-auth          Create worktree with new branch from HEAD
   gwt create -b feature-auth --from main  Create from specific branch
   gwt create --checkout existing-branch   Use existing local branch
   gwt create --remote origin/feature      Checkout remote branch`,
+	Args: cobra.MaximumNArgs(1),
 	RunE: runCreate,
 }
 
@@ -85,6 +89,12 @@ func init() {
 
 // runCreate is the main entry point for the create command
 func runCreate(cmd *cobra.Command, args []string) error {
+	normalizedOpts, err := normalizeCreateOptions(createOpts, args)
+	if err != nil {
+		return err
+	}
+	createOpts = normalizedOpts
+
 	// 1. Validate we're in a git repository (needed for both TUI and CLI)
 	repoPath, err := getRepoPath(".")
 	if err != nil {
@@ -165,6 +175,19 @@ func validateCreateOptions(opts CreateOptions) error {
 	}
 
 	return nil
+}
+
+func normalizeCreateOptions(opts CreateOptions, args []string) (CreateOptions, error) {
+	if len(args) == 0 {
+		return opts, nil
+	}
+
+	if hasAnyBranchFlag(opts) {
+		return opts, fmt.Errorf("cannot use a positional branch with --branch, --checkout, or --remote")
+	}
+
+	opts.Branch = args[0]
+	return opts, nil
 }
 
 // Helper functions for create flow
@@ -374,8 +397,7 @@ func copyIgnoredFiles(source, target string, repoPath string) error {
 	// 1. Load config
 	cfg, err := config.Load(repoPath)
 	if err != nil {
-		// If no config, use empty config (will still use default excludes)
-		cfg = &config.Config{}
+		cfg = config.DefaultConfig()
 	}
 
 	// 2. Discover ignored files
@@ -389,13 +411,23 @@ func copyIgnoredFiles(source, target string, repoPath string) error {
 		return nil
 	}
 
-	// 3. Create pattern matcher from config
-	matcher := copy.NewPatternMatcher(cfg.CopyDefaults, cfg.CopyExclude)
+	// 3. Exclude Docker-managed data from the generic copy pass.
+	copyExcludes := append([]string{}, cfg.CopyExclude...)
+	dockerExcludes, err := detectDockerCopyExcludes(source, cfg)
+	if err != nil {
+		output.Verbose(fmt.Sprintf("Skipping Docker copy excludes: %v", err))
+	} else if len(dockerExcludes) > 0 {
+		copyExcludes = append(copyExcludes, dockerExcludes...)
+		output.Verbose(fmt.Sprintf("Excluding Docker-managed paths from copy: %s", strings.Join(dockerExcludes, ", ")))
+	}
 
-	// 4. Create selection (pre-select defaults)
+	// 4. Create pattern matcher from config
+	matcher := copy.NewPatternMatcher(cfg.CopyDefaults, copyExcludes)
+
+	// 5. Create selection (pre-select defaults)
 	selection := copy.NewSelection(ignored, matcher)
 
-	// 5. Get selected files
+	// 6. Get selected files
 	selected := selection.GetSelected()
 
 	if len(selected) == 0 {
@@ -403,7 +435,7 @@ func copyIgnoredFiles(source, target string, repoPath string) error {
 		return nil
 	}
 
-	// 6. Show summary and copy
+	// 7. Show summary and copy
 	output.Info(fmt.Sprintf("Copying %d files (%s)...",
 		len(selected), copy.FormatSize(selection.SelectedSize)))
 
@@ -437,6 +469,63 @@ func copyIgnoredFiles(source, target string, repoPath string) error {
 		result.FilesCopied, copy.FormatSize(result.BytesCopied)))
 
 	return nil
+}
+
+func detectDockerCopyExcludes(worktreePath string, cfg *config.Config) ([]string, error) {
+	composeFiles, err := docker.DetectOrLoad(worktreePath, cfg.Docker.ComposeFiles)
+	if err != nil {
+		if errors.Is(err, docker.ErrNoComposeFile) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	composePaths := docker.GetComposePaths(composeFiles)
+	composeConfig, err := docker.ParseComposeFiles(composePaths)
+	if err != nil {
+		return nil, err
+	}
+
+	dataDirectories := cfg.Docker.DataDirectories
+	if len(dataDirectories) == 0 {
+		dataDirectories = docker.ExtractDataDirectories(composeConfig)
+	}
+
+	seen := make(map[string]struct{}, len(dataDirectories))
+	excludes := make([]string, 0, len(dataDirectories))
+
+	for _, dir := range dataDirectories {
+		normalized := normalizeDockerCopyExclude(dir)
+		if normalized == "" {
+			continue
+		}
+		if _, exists := seen[normalized]; exists {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		excludes = append(excludes, normalized)
+	}
+
+	sort.Strings(excludes)
+
+	return excludes, nil
+}
+
+func normalizeDockerCopyExclude(path string) string {
+	path = strings.TrimSpace(path)
+	if path == "" || strings.HasPrefix(path, "${") || filepath.IsAbs(path) {
+		return ""
+	}
+
+	normalized := filepath.ToSlash(filepath.Clean(path))
+	normalized = strings.TrimPrefix(normalized, "./")
+	normalized = strings.TrimPrefix(normalized, "/")
+
+	if normalized == "." || normalized == ".." || strings.HasPrefix(normalized, "../") {
+		return ""
+	}
+
+	return normalized
 }
 
 func printSuccessMessage(result *create.CreateWorktreeResult) {

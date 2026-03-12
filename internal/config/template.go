@@ -9,10 +9,12 @@ const DefaultConfigTemplate = `# gwt configuration file
 copy_defaults:
   - ".env"
   - "**/.env"
-  - "**/.env.local"
-  - ".claude/"
-  - "**/*.local.md"
-  - "**/setenv.sh"
+  - ".env.*"
+  - "**/.env.*"
+  - "*.local"
+  - "**/*.local"
+  - "*.local.*"
+  - "**/*.local.*"
 
 # Patterns to never select by default (even if gitignored)
 copy_exclude:

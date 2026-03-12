@@ -35,8 +35,8 @@ func TestLoadFullConfig(t *testing.T) {
 	}
 
 	// Verify all fields
-	if len(cfg.CopyDefaults) != 6 {
-		t.Errorf("Expected 6 copy_defaults, got %d", len(cfg.CopyDefaults))
+	if len(cfg.CopyDefaults) != 8 {
+		t.Errorf("Expected 8 copy_defaults, got %d", len(cfg.CopyDefaults))
 	}
 
 	if len(cfg.CopyExclude) != 8 {

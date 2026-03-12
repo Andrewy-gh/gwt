@@ -6,10 +6,12 @@ func DefaultConfig() *Config {
 		CopyDefaults: []string{
 			".env",
 			"**/.env",
-			"**/.env.local",
-			".claude/",
-			"**/*.local.md",
-			"**/setenv.sh",
+			".env.*",
+			"**/.env.*",
+			"*.local",
+			"**/*.local",
+			"*.local.*",
+			"**/*.local.*",
 		},
 		CopyExclude: []string{
 			"node_modules",
