@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/Andrewy-gh/gwt/internal/output"
 	"github.com/Andrewy-gh/gwt/internal/version"
@@ -45,6 +46,11 @@ Run 'gwt doctor' to check system prerequisites.`,
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
+	args := normalizeCLIArgs(os.Args[1:])
+	if len(args) > 0 {
+		rootCmd.SetArgs(args)
+	}
+
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -80,4 +86,64 @@ func GetConfig() string {
 // GetNoTUI returns the no-tui flag value
 func GetNoTUI() bool {
 	return noTUIFlag
+}
+
+func normalizeCLIArgs(args []string) []string {
+	commandIndex, commandName := firstCommandToken(args)
+	if commandIndex == -1 || commandName == "" {
+		return args
+	}
+
+	if isKnownRootSubcommand(commandName) {
+		return args
+	}
+
+	normalized := make([]string, 0, len(args)+1)
+	normalized = append(normalized, args[:commandIndex]...)
+	normalized = append(normalized, "create")
+	normalized = append(normalized, args[commandIndex:]...)
+
+	return normalized
+}
+
+func firstCommandToken(args []string) (int, string) {
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == "--" {
+			return -1, ""
+		}
+
+		if arg == "-c" || arg == "--config" {
+			i++
+			continue
+		}
+
+		if strings.HasPrefix(arg, "--config=") {
+			continue
+		}
+
+		if strings.HasPrefix(arg, "-") {
+			continue
+		}
+
+		return i, arg
+	}
+
+	return -1, ""
+}
+
+func isKnownRootSubcommand(name string) bool {
+	for _, cmd := range rootCmd.Commands() {
+		if cmd.Name() == name {
+			return true
+		}
+
+		for _, alias := range cmd.Aliases {
+			if alias == name {
+				return true
+			}
+		}
+	}
+
+	return false
 }

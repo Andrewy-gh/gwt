@@ -19,10 +19,12 @@ func TestDefaultConfig(t *testing.T) {
 	expectedCopyDefaults := []string{
 		".env",
 		"**/.env",
-		"**/.env.local",
-		".claude/",
-		"**/*.local.md",
-		"**/setenv.sh",
+		".env.*",
+		"**/.env.*",
+		"*.local",
+		"**/*.local",
+		"*.local.*",
+		"**/*.local.*",
 	}
 
 	if len(cfg.CopyDefaults) != len(expectedCopyDefaults) {

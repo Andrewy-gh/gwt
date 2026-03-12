@@ -65,3 +65,43 @@ func TestPrintSuccessMessage_OmitsCommitClauseWhenCommitUnknown(t *testing.T) {
 		t.Fatal("did not expect commit clause when commit is unknown")
 	}
 }
+
+func TestNormalizeCreateOptions_UsesPositionalBranch(t *testing.T) {
+	opts, err := normalizeCreateOptions(CreateOptions{}, []string{"feature-auth"})
+	if err != nil {
+		t.Fatalf("normalizeCreateOptions returned error: %v", err)
+	}
+
+	if opts.Branch != "feature-auth" {
+		t.Fatalf("expected positional branch to be used, got %q", opts.Branch)
+	}
+}
+
+func TestNormalizeCreateOptions_RejectsMixedBranchSources(t *testing.T) {
+	_, err := normalizeCreateOptions(CreateOptions{Checkout: "existing"}, []string{"feature-auth"})
+	if err == nil {
+		t.Fatal("expected error when positional branch is mixed with checkout flag")
+	}
+}
+
+func TestNormalizeDockerCopyExclude(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{name: "relative path", input: "./docker-data", expected: "docker-data"},
+		{name: "nested path", input: "var/lib/postgres", expected: "var/lib/postgres"},
+		{name: "env var", input: "${DATA_DIR}", expected: ""},
+		{name: "parent escape", input: "../shared-data", expected: ""},
+		{name: "empty", input: "", expected: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := normalizeDockerCopyExclude(tt.input); got != tt.expected {
+				t.Fatalf("normalizeDockerCopyExclude(%q) = %q, want %q", tt.input, got, tt.expected)
+			}
+		})
+	}
+}
