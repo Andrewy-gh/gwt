@@ -24,16 +24,41 @@ type LockInfo struct {
 	StartTime time.Time `json:"started"`
 }
 
+// GetLockPath returns the operation lock file path for a repository.
+func GetLockPath(repoPath string) (string, error) {
+	gitDir, err := git.GetGitDir(repoPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to get git directory: %w", err)
+	}
+
+	return filepath.Join(gitDir, "gwt.lock"), nil
+}
+
+// LockExists reports whether a gwt operation lock file currently exists.
+func LockExists(repoPath string) (bool, error) {
+	lockPath, err := GetLockPath(repoPath)
+	if err != nil {
+		return false, err
+	}
+
+	_, err = os.Stat(lockPath)
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+
+	return false, fmt.Errorf("failed to check lock file: %w", err)
+}
+
 // AcquireLock attempts to acquire the operation lock
 // Returns error if lock is held by another process
 func AcquireLock(repoPath string) (*OperationLock, error) {
-	// Get git directory
-	gitDir, err := git.GetGitDir(repoPath)
+	lockPath, err := GetLockPath(repoPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get git directory: %w", err)
+		return nil, err
 	}
-
-	lockPath := filepath.Join(gitDir, "gwt.lock")
 
 	// Try to create lock file with exclusive access
 	// O_CREATE|O_EXCL ensures atomicity - fails if file exists
@@ -48,8 +73,11 @@ func AcquireLock(repoPath string) (*OperationLock, error) {
 
 			// Check if process is still running
 			if isProcessRunning(info.PID) {
-				return nil, fmt.Errorf("another gwt operation is in progress (PID %d, started %s)",
-					info.PID, info.StartTime.Format(time.RFC3339))
+				return nil, fmt.Errorf(
+					"another gwt operation is in progress (PID %d, started %s); wait for it to finish or run 'gwt unlock' if the lock is stale",
+					info.PID,
+					info.StartTime.Format(time.RFC3339),
+				)
 			}
 
 			// Stale lock, remove it
@@ -100,12 +128,10 @@ func (l *OperationLock) Release() error {
 
 // IsLocked checks if operations are locked
 func IsLocked(repoPath string) (bool, error) {
-	gitDir, err := git.GetGitDir(repoPath)
+	lockPath, err := GetLockPath(repoPath)
 	if err != nil {
-		return false, fmt.Errorf("failed to get git directory: %w", err)
+		return false, err
 	}
-
-	lockPath := filepath.Join(gitDir, "gwt.lock")
 
 	// Check if lock file exists
 	_, err = os.Stat(lockPath)
@@ -129,12 +155,10 @@ func IsLocked(repoPath string) (bool, error) {
 
 // GetLockInfo returns information about the current lock holder
 func GetLockInfo(repoPath string) (*LockInfo, error) {
-	gitDir, err := git.GetGitDir(repoPath)
+	lockPath, err := GetLockPath(repoPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get git directory: %w", err)
+		return nil, err
 	}
-
-	lockPath := filepath.Join(gitDir, "gwt.lock")
 
 	// Read lock file
 	data, err := os.ReadFile(lockPath)
@@ -157,12 +181,10 @@ func GetLockInfo(repoPath string) (*LockInfo, error) {
 // ForceUnlock forcibly removes the lock file
 // This should only be used when you're certain the lock is stale
 func ForceUnlock(repoPath string) error {
-	gitDir, err := git.GetGitDir(repoPath)
+	lockPath, err := GetLockPath(repoPath)
 	if err != nil {
-		return fmt.Errorf("failed to get git directory: %w", err)
+		return err
 	}
-
-	lockPath := filepath.Join(gitDir, "gwt.lock")
 
 	err = os.Remove(lockPath)
 	if err != nil && !os.IsNotExist(err) {

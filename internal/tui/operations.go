@@ -33,8 +33,19 @@ func createWorktreeCmd(state *CreateFlowState, repoPath string) tea.Cmd {
 		// Note: Progress updates would require using channels to send intermediate messages.
 		// For now, the spinner will indicate activity and all stages will be marked complete on success.
 
-		// Create the worktree using git commands
-		var err error
+		lock, err := create.AcquireLock(repoPath)
+		if err != nil {
+			return CreateCompleteMsg{
+				WorktreePath: worktreePath,
+				Error:        fmt.Errorf("failed to acquire lock: %w", err),
+			}
+		}
+		lockReleased := false
+		defer func() {
+			if !lockReleased {
+				_ = lock.Release()
+			}
+		}()
 
 		switch state.SourceType {
 		case create.BranchSourceNewFromHEAD:
@@ -152,6 +163,14 @@ func createWorktreeCmd(state *CreateFlowState, repoPath string) tea.Cmd {
 		}
 
 		// Success!
+		if err := lock.Release(); err != nil {
+			return CreateCompleteMsg{
+				WorktreePath: worktreePath,
+				Error:        fmt.Errorf("worktree created but failed to release lock: %w; run 'gwt unlock' if needed", err),
+			}
+		}
+		lockReleased = true
+
 		return CreateCompleteMsg{
 			WorktreePath: worktreePath,
 			Error:        nil,
@@ -192,10 +211,24 @@ func deleteWorktreesCmd(repoPath string, targets []string, force bool) tea.Cmd {
 	return func() tea.Msg {
 		var deleted []string
 		var failed []DeleteFailure
+		lock, err := create.AcquireLock(repoPath)
+		if err != nil {
+			return DeleteCompleteMsg{
+				Deleted: deleted,
+				Failed:  failed,
+				Error:   fmt.Errorf("failed to acquire lock: %w", err),
+			}
+		}
+		lockReleased := false
+		defer func() {
+			if !lockReleased {
+				_ = lock.Release()
+			}
+		}()
 
 		for _, path := range targets {
 			// Remove the worktree
-			err := git.RemoveWorktree(repoPath, git.RemoveWorktreeOptions{
+			err = git.RemoveWorktree(repoPath, git.RemoveWorktreeOptions{
 				Path:  path,
 				Force: force,
 			})
@@ -235,6 +268,15 @@ func deleteWorktreesCmd(repoPath string, targets []string, force bool) tea.Cmd {
 				Error:   fmt.Errorf("all deletions failed"),
 			}
 		}
+
+		if err := lock.Release(); err != nil {
+			return DeleteCompleteMsg{
+				Deleted: deleted,
+				Failed:  failed,
+				Error:   fmt.Errorf("finished deleting worktrees but failed to release lock: %w; run 'gwt unlock' if needed", err),
+			}
+		}
+		lockReleased = true
 
 		return DeleteCompleteMsg{
 			Deleted: deleted,

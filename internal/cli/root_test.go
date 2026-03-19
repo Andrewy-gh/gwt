@@ -32,6 +32,11 @@ func TestNormalizeCLIArgs_RoutesBareBranchToCreate(t *testing.T) {
 			expected: []string{"list"},
 		},
 		{
+			name:     "unlock subcommand unchanged",
+			input:    []string{"unlock"},
+			expected: []string{"unlock"},
+		},
+		{
 			name:     "create command unchanged",
 			input:    []string{"create", "feature-auth"},
 			expected: []string{"create", "feature-auth"},
