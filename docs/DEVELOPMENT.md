@@ -332,4 +332,3 @@ package mypackage
 - [Go Testing](https://go.dev/doc/tutorial/add-a-test)
 - [Effective Go](https://go.dev/doc/effective_go)
 - [GWT Specification](GWT_SPEC.md)
-- [Implementation Phases](IMPLEMENTATION_PHASES.md)

@@ -17,7 +17,7 @@ A CLI/TUI tool for managing Git worktrees with automated setup, file copying, an
 
 **Modes:**
 - **Interactive TUI** (default): Full keyboard-navigable interface
-- **Non-interactive**: Flag-driven for scripting (`--branch`, `--no-prompt`)
+- **Non-interactive**: Flag-driven for scripting (`--branch`, `--no-tui`)
 
 **Branch Sources:**
 - New branch from current HEAD (default)
@@ -520,7 +520,7 @@ After installing, restart your terminal and try again.
 |-----------|---------|---------|
 | TUI Framework | [Bubble Tea](https://github.com/charmbracelet/bubbletea) | Interactive terminal UI |
 | Styling | [Lip Gloss](https://github.com/charmbracelet/lipgloss) | Terminal styling and layout |
-| Forms | [Huh](https://github.com/charmbracelet/huh) | Form inputs and prompts |
+| TUI Components | [Bubbles](https://github.com/charmbracelet/bubbles) | Reusable terminal UI components |
 | CLI Framework | [Cobra](https://github.com/spf13/cobra) | Command-line parsing |
 | Config | [Viper](https://github.com/spf13/viper) | Configuration management |
 | YAML | [gopkg.in/yaml.v3](https://gopkg.in/yaml.v3) | YAML parsing |
@@ -532,51 +532,23 @@ After installing, restart your terminal and try again.
 
 ```
 gwt/
-├── cmd/
-│   └── gwt/
-│       └── main.go              # Entry point
+├── cmd/gwt/                 # CLI entry point
 ├── internal/
-│   ├── cli/
-│   │   ├── root.go              # Root command
-│   │   ├── create.go            # Create command
-│   │   ├── list.go              # List command
-│   │   └── delete.go            # Delete command
-│   ├── tui/
-│   │   ├── app.go               # Main TUI application
-│   │   ├── views/
-│   │   │   ├── menu.go          # Main menu view
-│   │   │   ├── create.go        # Create worktree view
-│   │   │   ├── list.go          # List worktrees view
-│   │   │   ├── files.go         # File selection view
-│   │   │   └── docker.go        # Docker setup view
-│   │   ├── components/
-│   │   │   ├── checkbox.go      # Checkbox list component
-│   │   │   ├── input.go         # Text input component
-│   │   │   └── table.go         # Table component
-│   │   └── styles/
-│   │       └── styles.go        # Lip Gloss styles
-│   ├── git/
-│   │   ├── worktree.go          # Worktree operations
-│   │   ├── branch.go            # Branch operations
-│   │   └── status.go            # Status/ignored files
-│   ├── docker/
-│   │   ├── compose.go           # Compose file parsing
-│   │   ├── scaffold.go          # Scaffold generation
-│   │   └── volumes.go           # Volume management
-│   ├── files/
-│   │   ├── copy.go              # File copying
-│   │   ├── symlink.go           # Symlink creation
-│   │   └── ignore.go            # Gitignore parsing
-│   ├── deps/
-│   │   ├── detect.go            # Package manager detection
-│   │   └── install.go           # Dependency installation
-│   ├── migrations/
-│   │   ├── detect.go            # Migration tool detection
-│   │   └── run.go               # Migration execution
-│   └── config/
-│       ├── config.go            # Config struct
-│       └── load.go              # Config loading
-├── .worktree.yaml               # Example config
+│   ├── cli/                 # Cobra commands
+│   ├── config/              # .worktree.yaml loading and validation
+│   ├── copy/                # Gitignored file discovery and copying
+│   ├── create/              # Worktree creation orchestration
+│   ├── docker/              # Docker Compose detection and scaffolding
+│   ├── filter/              # Branch cleanup filtering
+│   ├── git/                 # Git execution and repo/worktree operations
+│   ├── hooks/               # Post-create/post-delete hooks
+│   ├── install/             # Dependency installation
+│   ├── migrate/             # Database migration execution
+│   ├── output/              # CLI output helpers
+│   ├── tui/                 # TUI views, components, and async flows
+│   └── version/             # Version/build information
+├── docs/                    # Active reference docs
+├── .worktree.yaml           # Example config
 ├── go.mod
 ├── go.sum
 └── README.md
@@ -591,7 +563,7 @@ gwt/
 - [ ] Remote worktree sync (push/pull worktree state)
 - [ ] IDE integration (VS Code extension, JetBrains plugin)
 - [ ] Worktree health checks (stale branches, merge conflicts)
-- [ ] Auto-cleanup (delete worktrees for merged branches)
+- [ ] Automatic worktree cleanup based on merged-branch detection
 
 ---
 

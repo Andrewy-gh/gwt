@@ -502,7 +502,7 @@ gwt create feature-x \\server\share\projects\app\worktrees\feature-x
    gwt --verbose create feature-x
    ```
 
-3. **Check the FAQ:** [docs/FAQ.md](FAQ.md)
+3. **Check the docs index:** [README.md](README.md)
 
 4. **Report issues:** [GitHub Issues](https://github.com/Andrewy-gh/gwt/issues)
    - Include output from `gwt doctor`

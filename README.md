@@ -1,645 +1,131 @@
-# gwt - Git Worktree Manager
+# gwt
 
-A powerful CLI tool for managing Git worktrees, making it easy to work with multiple branches simultaneously.
+`gwt` is a Git worktree manager for teams that want fast branch switching without repeatedly hand-assembling local setup.
 
-## Features
+It wraps the usual Git worktree flow with repository checks, optional TUI flows, config-driven file copying, Docker setup, dependency installation, migrations, hooks, and branch cleanup.
 
-### Current
+## Highlights
 
-**Phase 1: Foundation**
-- **System diagnostics** - `gwt doctor` validates prerequisites
-- **Cross-platform support** - Windows, macOS, and Linux
-- **Flexible output** - Verbose and quiet modes with color support
-
-**Phase 2: Git Operations Core**
-- **Complete git abstraction layer** - Robust wrapper for all git operations
-- **Worktree management** - List, add, remove, prune, lock/unlock worktrees
-- **Branch operations** - Create, delete, rename, list local/remote branches
-- **Repository validation** - Detect repo state, worktrees, bare repos
-- **Status detection** - Clean/dirty state, staged/unstaged changes, ahead/behind tracking
-- **Remote operations** - Fetch, push, upstream tracking
-- **Comprehensive test coverage** - 34+ unit tests ensuring reliability
-
-**Phase 3: Configuration System**
-- **Config file support** - `.worktree.yaml` with YAML format
-- **Config commands** - View, initialize, and manage configuration
-- **Config inheritance** - Linked worktrees inherit from main worktree
-- **Validation** - Comprehensive validation for all config fields
-- **Default values** - Sensible defaults for all settings
-- **Global --config flag** - Override config file path
-
-**Phase 4: Create Worktree (CLI)**
-- **Create command** - `gwt create` with comprehensive flag support
-- **Branch validation** - Git branch name validation and directory name conversion
-- **Multiple branch sources** - New branch from HEAD/ref, existing local, or remote branch
-- **Directory collision detection** - Smart handling of existing directories
-- **Rollback on failure** - Automatic cleanup of partial worktree creation
-- **Operation locking** - Prevent concurrent operations with stale lock detection
-- **Safe defaults** - Worktrees placed as siblings to main worktree
-
-**Phase 5: List & Delete Worktrees (CLI)**
-- **List command** - `gwt list` with table, JSON, and simple output formats
-- **Status command** - `gwt status` for detailed worktree information
-- **Delete command** - `gwt delete` with comprehensive safety checks
-- **Batch operations** - Delete multiple worktrees with confirmation
-- **Main worktree protection** - Prevents accidental deletion of main worktree
-
-**Phase 6: File Copying**
-- **Gitignored file discovery** - Automatic detection via `git status --ignored`
-- **Pattern matching** - Apply `copy_defaults` and `copy_exclude` from config
-- **Smart exclusions** - Auto-exclude dependency directories (node_modules, vendor, etc.)
-- **File size display** - Show sizes for informed selection
-- **Progress tracking** - Real-time progress during copy operations
-- **Error handling** - Collect and report errors without stopping entire operation
-
-**Phase 7: Docker Compose Scaffolding**
-- **Auto-detection** - Finds docker-compose.yml and override files automatically
-- **Shared mode** - Symlinks data directories to main worktree (default)
-- **New mode** - Isolated containers with renamed volumes and remapped ports
-- **Windows fallback** - Automatic fallback chain: symlink → junction → copy
-- **Helper scripts** - Generates `dc` wrapper script (bash/PowerShell/CMD)
-- **Port conflict detection** - Warns about common port conflicts with suggestions
-- **Override generation** - Creates `docker-compose.worktree.yml` with branch suffix
-- **Config integration** - Supports `docker` section in `.worktree.yaml`
-
-**Phase 8: Dependency Installation**
-- **Package manager detection** - Supports npm, yarn, pnpm, bun, go, cargo, pip, poetry
-- **Monorepo support** - Configure multiple paths with glob patterns
-- **Lock file priority** - Prefers specific lock files (bun > pnpm > yarn > npm)
-- **Streaming output** - Real-time installation progress in verbose mode
-- **Timeout protection** - 5-minute default timeout prevents hanging
-- **Non-fatal errors** - Worktree creation succeeds even if install fails
-- **Skip flag** - `--skip-install` to bypass dependency installation
-- **Auto-install** - Runs automatically after worktree creation (configurable)
-
-**Phase 9: Database Migrations**
-- **Migration tool detection** - Supports Makefile, Prisma, Drizzle, Alembic, raw SQL
-- **Container readiness checks** - Verifies database container is running before migrations
-- **Docker Compose integration** - Detects compose files and database services
-- **Streaming output** - Real-time migration progress in verbose mode
-- **Timeout protection** - 5-minute default timeout prevents hanging
-- **Non-fatal errors** - Worktree creation succeeds even if migration fails
-- **Skip flag** - `--skip-migrations` to bypass database migrations
-- **Custom commands** - Override with custom migration command in config
-- **Auto-run** - Executes automatically after dependency installation (configurable)
-
-**Phase 10: Post-Setup Hooks**
-- **Lifecycle hooks** - Run custom commands after worktree creation/deletion
-- **Environment variables** - Access GWT_WORKTREE_PATH, GWT_BRANCH, GWT_MAIN_WORKTREE, GWT_REPO_PATH, GWT_HOOK_TYPE
-- **Sequential execution** - Hooks run in order with predictable behavior
-- **Timeout protection** - 5-minute default timeout per hook
-- **Non-fatal errors** - Hook failures don't prevent worktree operations
-- **Skip flags** - `--skip-hooks` to bypass hook execution
-- **Cross-platform** - Works on Windows (cmd.exe) and Unix (/bin/sh)
-- **Config integration** - Define hooks in `.worktree.yaml` (post_create, post_delete)
-
-**Phase 11: TUI Framework**
-- **Bubble Tea application** - Modern terminal UI built on Charm libraries
-- **Lip Gloss theming** - Purple (#7C3AED) and Cyan (#06B6D4) color scheme
-- **Reusable components** - Checkbox list, text input, table, radio list, spinner, progress bars
-- **Vim-style navigation** - Support for j/k keys alongside arrow keys
-- **Main menu** - Interactive menu with Create, List, Delete, Configuration options
-- **Keyboard shortcuts** - Enter to select, Esc to go back, q to quit, customizable bindings
-- **CLI integration** - TUI launches automatically with `gwt create` (no flags)
-- **Fallback mode** - Use `--no-tui` for non-interactive operation
-
-**Phase 12: TUI Views**
-- **Create worktree flow** - Branch selection → source/remote (conditional) → file selection → Docker mode → progress
-- **Branch input view** - Branch name with inline validation, source type selection (new from HEAD/ref, existing, remote)
-- **Source selection view** - Reference/commit/tag input with suggestions for new branches
-- **Remote branch view** - Filterable table of remote branches with real-time fetch capability
-- **File selection view** - Checkbox list with size display, pre-selection from config, async file discovery
-- **Docker mode view** - Radio selection for None/Shared/New modes with auto-detection and info boxes
-- **Worktree list view** - Table with status indicators (clean/dirty/warnings), batch selection for deletion
-- **Delete confirmation** - Pre-flight checks (blocking/warnings), confirmation prompt with safety checks
-- **Progress views** - Real-time feedback for fetching, copying, creating, and deleting operations
-- **Flow state management** - View history for back navigation, conditional transitions based on selections
-- **Async operations** - Background file discovery, Docker detection, worktree creation/deletion with hooks
-
-### Planned
-- Branch cleanup utilities
-- Advanced filtering and search
-- Configuration editor UI
+- Create worktrees from new, existing, or remote branches.
+- Use a TUI by default or run fully from flags for scripts.
+- Copy selected ignored files into new worktrees.
+- Scaffold Docker Compose overrides and helper scripts.
+- Run dependency installation, migrations, and post-create hooks.
+- List, inspect, delete, unlock, and clean up worktrees and branches.
 
 ## Installation
 
-### From Source
+### From source
 
 ```bash
-# Clone the repository
 git clone https://github.com/Andrewy-gh/gwt
 cd gwt
-
-# Build the binary
 go build -o gwt ./cmd/gwt
-
-# Optional: Install to PATH
-go install ./cmd/gwt
 ```
 
 ### Prerequisites
 
-- **Git 2.20+** - Required for worktree features
-- **Go 1.21+** - For building from source
-- **Docker** (optional) - For database synchronization features
-- **Docker Compose** (optional) - For multi-container setups
+- Git 2.20+
+- Go 1.26+
+- Docker and Docker Compose if you use the Docker or migration workflows
 
-## Quick Start
+## Quick start
 
-Check that your system meets all requirements:
+Check the environment:
 
 ```bash
 gwt doctor
 ```
 
-Expected output:
-```
-Checking prerequisites...
-
-✓ Git installed (2.43.0)
-✓ Git repository detected
-✓ Not a bare repository
-✓ Symlink permissions available
-✓ Docker installed (24.0.7)
-✓ Docker Compose available
-
-All checks passed! gwt is ready to use.
-```
-
-## Usage
-
-### Global Flags
-
-All commands support these global flags:
-
-| Flag | Short | Description |
-|------|-------|-------------|
-| `--verbose` | `-v` | Enable verbose output |
-| `--quiet` | `-q` | Suppress non-essential output |
-| `--config` | `-c` | Path to config file |
-| `--no-tui` | | Disable TUI, use simple prompts |
-| `--help` | `-h` | Show help |
-| `--version` | | Show version |
-
-### Commands
-
-#### `gwt doctor`
-
-Validates system prerequisites and environment setup.
+Create a default config:
 
 ```bash
-# Basic check
-gwt doctor
-
-# Verbose output
-gwt -v doctor
-
-# Quiet mode (errors only)
-gwt -q doctor
-```
-
-**Checks performed:**
-- Git installation and version (minimum 2.20)
-- Git repository detection
-- Bare repository validation
-- Symlink support (Windows)
-- Docker availability (optional)
-- Docker Compose availability (optional)
-
-#### `gwt config`
-
-View and manage gwt configuration.
-
-```bash
-# View current configuration
-gwt config
-# or
-gwt config show
-
-# Show path to config file
-gwt config path
-
-# Create default config file
 gwt config init
-
-# Overwrite existing config file
-gwt config init --force
-
-# Create config in specific location
-gwt config init --output /path/to/.worktree.yaml
-
-# Use custom config file
-gwt --config /path/to/config.yaml config
 ```
 
-**Configuration File (`.worktree.yaml`):**
+Create a new worktree:
 
-The config file controls gwt behavior with the following sections:
+```bash
+gwt create -b feature/auth
+```
 
-- **copy_defaults**: Files/patterns to pre-select for copying (supports glob patterns)
-- **copy_exclude**: Patterns to never select by default
-- **docker**: Docker Compose settings
-  - `compose_files`: Specific compose files to use (auto-detected if not set)
-  - `data_directories`: Directories to symlink/copy (auto-detected if not set)
-  - `default_mode`: Default Docker mode (`shared` or `new`)
-  - `port_offset`: Port offset for new mode (default: 1)
-- **dependencies**: Dependency installation settings (auto-install, paths)
-- **migrations**: Database migration settings (auto-detect, custom command)
-- **hooks**: Lifecycle hooks (post_create, post_delete)
+List worktrees:
 
-**Config File Search Order:**
-1. Explicit path via `--config` flag
-2. `.worktree.yaml` in current directory
-3. `.worktree.yaml` in repository root
-4. `.worktree.yaml` in main worktree (for linked worktrees)
-5. Default values if no config file exists
+```bash
+gwt list
+gwt status
+```
 
-**Example:**
+Clean up merged branches:
+
+```bash
+gwt cleanup --merged --dry-run
+```
+
+## Common commands
+
+| Command | What it does |
+| --- | --- |
+| `gwt doctor` | Validate Git, repo, and optional tooling prerequisites |
+| `gwt create` | Create a new worktree from a branch source |
+| `gwt list` | List worktrees |
+| `gwt status` | Show detailed worktree status |
+| `gwt delete` | Delete one or more worktrees safely |
+| `gwt cleanup` | Remove merged or stale branches |
+| `gwt config` | Show, edit, or initialize `.worktree.yaml` |
+| `gwt unlock` | Remove a stale operation lock |
+
+For the live CLI surface, run:
+
+```bash
+gwt --help
+gwt create --help
+gwt cleanup --help
+```
+
+## Example configuration
+
 ```yaml
 copy_defaults:
   - ".env"
   - "**/.env.local"
 
 docker:
-  compose_files:
-    - "docker-compose.yml"
-    - "docker-compose.dev.yml"
-  data_directories:
-    - "server/db-data"
-    - "data/redis"
   default_mode: "shared"
   port_offset: 1
 
 dependencies:
   auto_install: true
   paths:
-    - "."              # Root package
-    - "client"         # Frontend
-    - "packages/*"     # Monorepo packages (glob pattern)
+    - "."
 
 migrations:
   auto_detect: true
-  command: ""          # Optional: override with custom command (e.g., "make db-migrate")
 
 hooks:
   post_create:
-    - "echo 'Setting up worktree...'"
-    - "npm run setup"
-  post_delete:
-    - "echo 'Cleaning up resources...'"
+    - "echo setup"
 ```
 
-#### `gwt create`
+## Documentation
 
-Create a new worktree from a new or existing branch.
+Active docs live in [`docs/README.md`](docs/README.md).
 
-```bash
-# Create worktree with new branch from HEAD
-gwt create -b feature-auth
+- [`docs/GWT_SPEC.md`](docs/GWT_SPEC.md): product and workflow spec
+- [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md): development notes and contributor guidance
+- [`docs/WINDOWS_GUIDE.md`](docs/WINDOWS_GUIDE.md): Windows-specific setup and troubleshooting
+- [`docs/CHANGELOG.md`](docs/CHANGELOG.md): release history
 
-# Create from specific ref (branch, tag, or commit)
-gwt create -b feature-auth --from main
-gwt create -b hotfix --from v1.2.0
-
-# Use existing local branch
-gwt create --checkout existing-branch
-
-# Checkout remote branch (creates local tracking branch)
-gwt create --remote origin/feature-x
-
-# Override directory name
-gwt create -b feature-auth --directory custom-name
-
-# Force creation (skip some validations)
-gwt create -b feature-auth --force
-```
-
-**Flags:**
-
-| Flag | Short | Description |
-|------|-------|-------------|
-| `--branch` | `-b` | New branch name |
-| `--from` | | Starting point for new branch (default: HEAD) |
-| `--checkout` | | Existing local branch to checkout |
-| `--remote` | | Remote branch to checkout (creates tracking branch) |
-| `--directory` | `-d` | Override target directory name |
-| `--force` | `-f` | Force creation even with warnings |
-| `--skip-install` | | Skip dependency installation |
-| `--skip-migrations` | | Skip running migrations |
-| `--copy-config` | | Copy `.worktree.yaml` to new worktree |
-| `--skip-copy` | | Skip copying gitignored files |
-| `--docker-mode` | | Docker setup mode: `shared`, `new`, or `skip` |
-| `--skip-docker` | | Skip Docker Compose setup |
-| `--skip-hooks` | | Skip post-creation hooks |
-
-**Branch Source Flags:**
-- `--branch`, `--checkout`, and `--remote` are mutually exclusive
-- `--from` only valid with `--branch`
-- At least one branch source must be specified
-
-**Behavior:**
-- Worktrees are created as siblings to the main worktree: `../project-branch-name`
-- Branch names with slashes are converted: `feature/auth/login` → `project-feature-auth-login`
-- Directory collision detection with helpful error messages
-- Automatic rollback on failure (cleans up partial worktree)
-- Operation locking prevents concurrent `gwt create` commands
-
-**Examples:**
-
-```bash
-# Main worktree at: /home/user/myapp
-# Creates worktree at: /home/user/myapp-feature-auth
-gwt create -b feature-auth
-
-# With custom directory
-# Creates worktree at: /home/user/my-custom-dir
-gwt create -b feature-auth --directory my-custom-dir
-
-# Docker: Shared mode (containers share data with main worktree)
-gwt create -b feature-auth --docker-mode shared
-# Run: docker compose up
-
-# Docker: New mode (isolated containers)
-gwt create -b feature-auth --docker-mode new
-# Creates docker-compose.worktree.yml with renamed volumes and remapped ports
-# Generates ./dc helper script
-# Run: ./dc up
-
-# Skip Docker setup entirely
-gwt create -b feature-auth --skip-docker
-
-# Dependency Installation: Auto-detected and installed by default
-gwt create -b feature-auth
-# Detects: npm/yarn/pnpm/bun (JS), go (Go), cargo (Rust), pip/poetry (Python)
-
-# Skip dependency installation
-gwt create -b feature-auth --skip-install
-
-# Monorepo: Configure paths in .worktree.yaml
-# dependencies:
-#   paths:
-#     - "."
-#     - "apps/*"
-#     - "packages/*"
-
-# Database Migrations: Auto-detected and run by default
-gwt create -b feature-auth
-# Detects: Makefile targets, Prisma, Drizzle, Alembic, raw SQL
-# Checks database container readiness before running
-
-# Skip database migrations
-gwt create -b feature-auth --skip-migrations
-
-# Custom migration command in .worktree.yaml
-# migrations:
-#   auto_detect: true
-#   command: "make db-migrate"
-
-# Post-Creation Hooks: Run custom commands after worktree creation
-gwt create -b feature-auth
-# Configured hooks run automatically with GWT_* environment variables
-
-# Skip hooks
-gwt create -b feature-auth --skip-hooks
-
-# Example hooks in .worktree.yaml
-# hooks:
-#   post_create:
-#     - "echo 'Setting up in $GWT_WORKTREE_PATH'"
-#     - "cp .env.example .env"
-#     - "make setup"
-#   post_delete:
-#     - "docker compose -p gwt-$GWT_BRANCH down -v"
-```
+Historical phase plans, summaries, and milestone notes are maintained outside the repo.
 
 ## Development
 
-### Project Structure
-
-```
-gwt/
-├── cmd/gwt/              # Application entry point
-│   └── main.go
-├── internal/
-│   ├── cli/              # CLI commands and framework
-│   │   ├── root.go       # Root command
-│   │   ├── doctor.go     # Doctor command
-│   │   ├── config.go     # Config command
-│   │   ├── create.go     # Create command
-│   │   └── errors.go     # Error handling
-│   ├── config/           # Configuration management (Phase 3)
-│   │   ├── config.go     # Config structs
-│   │   ├── defaults.go   # Default values
-│   │   ├── load.go       # Config loading with Viper
-│   │   ├── validate.go   # Config validation
-│   │   ├── errors.go     # Config error types
-│   │   ├── template.go   # Config file template
-│   │   ├── *_test.go     # Config tests
-│   │   └── testdata/     # Test fixtures
-│   ├── copy/             # File copying (Phase 6)
-│   │   ├── discover.go   # Git ignored file discovery
-│   │   ├── match.go      # Pattern matching logic
-│   │   ├── copy.go       # File/directory copying
-│   │   ├── selection.go  # File selection with sizes
-│   │   ├── errors.go     # Custom error types
-│   │   └── *_test.go     # Copy tests
-│   ├── create/           # Worktree creation (Phase 4)
-│   │   ├── validate.go   # Branch name validation
-│   │   ├── branch.go     # Branch source handling
-│   │   ├── directory.go  # Directory collision detection
-│   │   ├── worktree.go   # Worktree creation orchestration
-│   │   ├── rollback.go   # Rollback and cleanup
-│   │   ├── lock.go       # Operation locking
-│   │   └── *_test.go     # Create tests
-│   ├── docker/           # Docker Compose scaffolding (Phase 7)
-│   │   ├── detect.go     # Compose file auto-detection
-│   │   ├── parse.go      # Compose file parsing
-│   │   ├── symlink.go    # Cross-platform symlink utilities
-│   │   ├── shared.go     # Shared mode implementation
-│   │   ├── new.go        # New mode implementation
-│   │   ├── override.go   # Override file generation
-│   │   ├── helper.go     # Helper script generation
-│   │   ├── ports.go      # Port conflict detection
-│   │   ├── errors.go     # Custom error types
-│   │   └── *_test.go     # Docker tests
-│   ├── git/              # Git operations core (Phase 2)
-│   │   ├── exec.go       # Command execution wrapper
-│   │   ├── errors.go     # Git-specific error types
-│   │   ├── repo.go       # Repository validation
-│   │   ├── worktree.go   # Worktree operations
-│   │   ├── branch.go     # Branch operations
-│   │   ├── status.go     # Status detection
-│   │   ├── remote.go     # Remote operations
-│   │   ├── git.go        # Git version & detection
-│   │   ├── *_test.go     # Comprehensive test coverage
-│   ├── hooks/            # Post-setup hooks (Phase 10)
-│   │   ├── errors.go     # Hook error types
-│   │   ├── env.go        # Environment variable setup
-│   │   ├── exec.go       # Command execution utilities
-│   │   ├── hooks.go      # Hook executor
-│   │   ├── *_test.go     # Hook tests
-│   │   └── testdata/     # Test fixtures
-│   ├── install/          # Dependency installation (Phase 8)
-│   │   ├── detect.go     # Package manager detection
-│   │   ├── install.go    # Installation orchestrator
-│   │   ├── manager.go    # Package manager types
-│   │   ├── result.go     # Result types
-│   │   └── *_test.go     # Installation tests
-│   ├── migrate/          # Database migrations (Phase 9)
-│   │   ├── detect.go     # Migration tool detection
-│   │   ├── run.go        # Migration executor
-│   │   ├── result.go     # Result types
-│   │   └── *_test.go     # Migration tests
-│   ├── output/           # Output utilities
-│   │   ├── output.go
-│   │   ├── progress.go   # Progress bar display
-│   │   └── output_test.go
-│   ├── testutil/         # Test utilities
-│   │   └── git.go        # Git test helpers
-│   ├── tui/              # TUI framework (Phases 11-12)
-│   │   ├── tui.go        # TUI entry point and runner
-│   │   ├── model.go      # Root model with view switching and update handlers
-│   │   ├── messages.go   # Custom Bubble Tea messages
-│   │   ├── flow.go       # Create/delete flow state management
-│   │   ├── operations.go # Async operation commands
-│   │   ├── keys.go       # Key bindings definitions
-│   │   ├── styles/
-│   │   │   └── styles.go # Lip Gloss theme and styles
-│   │   ├── components/
-│   │   │   ├── list.go     # Checkbox list component
-│   │   │   ├── input.go    # Text input component
-│   │   │   ├── table.go    # Table display component
-│   │   │   ├── radio.go    # Radio button list component
-│   │   │   ├── spinner.go  # Loading spinner component
-│   │   │   ├── progress.go # Progress bar component
-│   │   │   └── help.go     # Help footer component
-│   │   └── views/
-│   │       ├── menu.go           # Main menu view
-│   │       ├── create_branch.go  # Branch input view
-│   │       ├── create_source.go  # Source selection view
-│   │       ├── remote_branch.go  # Remote branch selection
-│   │       ├── file_select.go    # File selection view
-│   │       ├── docker_mode.go    # Docker mode selection
-│   │       ├── worktree_list.go  # Worktree list view
-│   │       ├── delete_confirm.go # Delete confirmation
-│   │       └── progress.go       # Progress views
-│   └── version/          # Version information
-│       ├── version.go
-│       └── version_test.go
-├── docs/                 # Documentation
-│   ├── GWT_SPEC.md
-│   ├── IMPLEMENTATION_PHASES.md
-│   ├── PHASE_1_PLAN.md
-│   ├── PHASE_2_PLAN.md
-│   ├── PHASE_2_SUMMARY.md
-│   ├── PHASE_3_PLAN.md
-│   ├── PHASE_4_PLAN.md
-│   ├── PHASE_4_SUMMARY.md
-│   ├── PHASE_5_PLAN.md
-│   ├── PHASE_5_SUMMARY.md
-│   ├── PHASE_6_PLAN.md
-│   ├── PHASE_6_SUMMARY.md
-│   ├── PHASE_7_PLAN.md
-│   ├── PHASE_7_SUMMARY.md
-│   ├── PHASE_8_PLAN.md
-│   ├── PHASE_8_SUMMARY.md
-│   ├── PHASE_9_PLAN.md
-│   ├── PHASE_9_SUMMARY.md
-│   ├── PHASE_10_PLAN.md
-│   ├── PHASE_10_SUMMARY.md
-│   ├── PHASE_11_PLAN.md
-│   ├── DEVELOPMENT.md
-│   └── CHANGELOG.md
-├── go.mod
-├── go.sum
-└── README.md
-```
-
-### Building
+Run the core checks before shipping changes:
 
 ```bash
-# Build for current platform
-go build -o gwt ./cmd/gwt
-
-# Build with version information
-go build -ldflags "-X github.com/Andrewy-gh/gwt/internal/version.Version=1.0.0 \
-  -X github.com/Andrewy-gh/gwt/internal/version.Commit=$(git rev-parse --short HEAD) \
-  -X github.com/Andrewy-gh/gwt/internal/version.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  -o gwt ./cmd/gwt
-
-# Cross-compile for different platforms
-GOOS=linux GOARCH=amd64 go build -o gwt-linux ./cmd/gwt
-GOOS=darwin GOARCH=amd64 go build -o gwt-darwin ./cmd/gwt
-GOOS=windows GOARCH=amd64 go build -o gwt.exe ./cmd/gwt
-```
-
-### Testing
-
-```bash
-# Run all tests
 go test ./...
-
-# Run tests with coverage
-go test -cover ./...
-
-# Run tests with verbose output
-go test -v ./...
-
-# Run specific package tests
-go test ./internal/git
-```
-
-### Code Quality
-
-```bash
-# Run go vet
 go vet ./...
-
-# Format code
 go fmt ./...
-
-# Tidy dependencies
-go mod tidy
 ```
 
-## Implementation Phases
-
-This project follows a phased implementation approach:
-
-- **Phase 1** (✓ Complete) - Foundation, CLI framework, `gwt doctor`
-- **Phase 2** (✓ Complete) - Git operations core (worktree, branch, status, remote)
-- **Phase 3** (✓ Complete) - Configuration management, `gwt config` commands
-- **Phase 4** (✓ Complete) - Create worktree CLI command with validation and rollback
-- **Phase 5** (✓ Complete) - List & delete worktree CLI commands
-- **Phase 6** (✓ Complete) - File copying with pattern matching and progress tracking
-- **Phase 7** (✓ Complete) - Docker Compose scaffolding with shared/new modes
-- **Phase 8** (✓ Complete) - Dependency installation with package manager detection
-- **Phase 9** (✓ Complete) - Database migrations with auto-detection
-- **Phase 10** (✓ Complete) - Post-setup hooks with environment variables
-- **Phase 11** (✓ Complete) - TUI framework with Bubble Tea and reusable components
-- **Phase 12** (✓ Complete) - TUI views for create/delete flows with interactive selection
-- **Phase 13+** (Planned) - Branch cleanup utilities, advanced features
-
-See [docs/IMPLEMENTATION_PHASES.md](docs/IMPLEMENTATION_PHASES.md) for details.
-
-## Contributing
-
-Contributions are welcome! Please ensure:
-
-1. Code passes `go vet` and `go test`
-2. New features include tests
-3. Documentation is updated
-4. Commit messages are clear and concise
-
-## License
-
-This project is open source. License TBD.
-
-## Acknowledgments
-
-Built with:
-- [Cobra](https://github.com/spf13/cobra) - CLI framework
-- [Viper](https://github.com/spf13/viper) - Configuration management
-- [Bubble Tea](https://github.com/charmbracelet/bubbletea) - TUI framework
-- [Lip Gloss](https://github.com/charmbracelet/lipgloss) - Style definitions for terminal UIs
-- [Bubbles](https://github.com/charmbracelet/bubbles) - TUI components
+If you are changing docs, keep the root README focused on current usage and use `docs/` for deeper reference material or historical archive notes.
