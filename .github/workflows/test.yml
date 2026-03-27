@@ -27,9 +27,9 @@ jobs:
         run: go test -v -race -coverprofile=coverage-linux.txt -covermode=atomic ./...
 
       - name: Upload coverage
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v6
         with:
-          file: ./coverage-linux.txt
+          files: ./coverage-linux.txt
           flags: linux
 
   # macOS tests
@@ -52,9 +52,9 @@ jobs:
         run: go test -v -race -coverprofile=coverage-macos.txt -covermode=atomic ./...
 
       - name: Upload coverage
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v6
         with:
-          file: ./coverage-macos.txt
+          files: ./coverage-macos.txt
           flags: macos
 
   # Windows tests
@@ -81,9 +81,9 @@ jobs:
         run: go test -v ./internal/test/...
 
       - name: Upload coverage
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v6
         with:
-          file: ./coverage-windows.out
+          files: ./coverage-windows.out
           flags: windows
 
       - name: Build for Windows
