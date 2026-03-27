@@ -2,17 +2,13 @@
 
 package create
 
-import "os"
+import "syscall"
 
 func isProcessRunning(pid int) bool {
 	if pid <= 0 {
 		return false
 	}
 
-	process, err := os.FindProcess(pid)
-	if err != nil {
-		return false
-	}
-
-	return process.Signal(os.Signal(nil)) == nil
+	err := syscall.Kill(pid, 0)
+	return err == nil || err == syscall.EPERM
 }
